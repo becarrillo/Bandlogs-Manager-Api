@@ -22,7 +22,8 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    private String secret = "My-smart-SECRET";
+    @Value("${jwt.secret}")
+    private String secret;
 
     private final UserRepository userRepository;
 
