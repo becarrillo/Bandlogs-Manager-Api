@@ -29,9 +29,9 @@ public class EventService {
         return this.eventRepository.findAll();
     }
 
-    public List<Event> getEventsByDate(Date date) {
+    public List<Event> getEventsByDate(Date eventDate) {
         try {
-            return this.eventRepository.findAllByDate(date);
+            return this.eventRepository.findAllByEventDate(eventDate);
         } catch (Exception e) {
             throw new ResourceNotFoundException(e.getMessage());
         }

@@ -26,7 +26,7 @@ public class BandController {
     @GetMapping("/{bandId}")
     public ResponseEntity<Band> getBandById(@PathVariable("bandId") Short id) {
         final Band foundBand = this.bandService.getBandById(id);
-        return new ResponseEntity<Band>(foundBand, HttpStatus.OK);
+        return new ResponseEntity<>(foundBand, HttpStatus.OK);
     }
 
     @GetMapping(path = "/bandas", params = {"event"})
@@ -38,7 +38,7 @@ public class BandController {
         if (foundBand==null) {
             throw new ResourceNotFoundException();
         }
-        return new ResponseEntity<Band>(
+        return new ResponseEntity<>(
                 foundBand,
                 HttpStatus.OK);
     }
@@ -46,7 +46,7 @@ public class BandController {
     @GetMapping
     public ResponseEntity<Set<Band>> listAllBands() {
         try {
-            return new ResponseEntity<Set<Band>>(
+            return new ResponseEntity<>(
                     this.bandService.getAllBands(),
                     HttpStatus.OK);
         } catch (Exception e) {
@@ -57,7 +57,7 @@ public class BandController {
     @PostMapping(path = "/agregar")
     public ResponseEntity<Band> addBand(@RequestBody Band band) {
         try {
-            return new ResponseEntity<Band>(
+            return new ResponseEntity<>(
                     this.bandService.saveBand(band),
                     HttpStatus.CREATED);
         } catch (Exception e) {
@@ -78,7 +78,7 @@ public class BandController {
                             "persona no puede ser efectuada en una instan-"+
                             " cia que no existe");
         }
-        return new ResponseEntity<Band>(band, HttpStatus.OK);
+        return new ResponseEntity<>(band, HttpStatus.OK);
     }
 
     @DeleteMapping(path = "{bandId}/eliminar")
@@ -101,7 +101,7 @@ public class BandController {
             throw new ResourceNotFoundException(
                     "Id provisto no representa una instancia de Banda existente");
         try {
-            return new ResponseEntity<Band>(band, HttpStatus.OK);
+            return new ResponseEntity<>(band, HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

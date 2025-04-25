@@ -5,15 +5,23 @@ spring:
   application:
     name: bandlogs-manager
   datasource:
-    url: jdbc:h2:mem:bandlogsDatabase
+    url: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
+    username: SYSTEM
+    password: $DB_PASSWORD
+    driverClassName: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
     show-sql: true
 
 jwt:
-  secret: ${MY_SECRET}
+  secret: $SECRET_KEY
+
+logging:
+  level:
+    org:
+      springframework:
+        jdbc: DEBUG

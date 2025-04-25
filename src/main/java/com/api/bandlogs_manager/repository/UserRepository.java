@@ -1,6 +1,9 @@
 package com.api.bandlogs_manager.repository;
 
+import java.util.Optional;
+
 import com.api.bandlogs_manager.entities.User;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +14,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserRepository extends JpaRepository<User, Integer> {
 
-    User findByPhoneNumber(String phoneNumber);
-    User findByNickname(String nickname);
+    Optional<User> findByPhoneNumber(String phoneNumber);
+    Optional<User> findByNickname(String nickname);
 }

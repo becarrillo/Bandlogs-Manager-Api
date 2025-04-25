@@ -1,8 +1,6 @@
 package com.api.bandlogs_manager.entities;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -25,8 +23,9 @@ public class Event {
     @Column(name = "event_id")
     private String eventId;
 
+    @Column(name = "event_date")
     @JsonFormat(pattern = "YYYY-MM-dd")
-    private Date date;
+    private Date eventDate;
 
     private String description;
     /**From which creates many of these events (especifically by the director)**/
@@ -42,8 +41,8 @@ public class Event {
         inverseJoinColumns = @JoinColumn(name = "song_id", referencedColumnName = "song_id"))
     private Set<Song> repertoire = new HashSet<Song>();
 
-    public Event(Date date, String description, String location) {
-        this.date = date;
+    public Event(Date eventDate, String description, String location) {
+        this.eventDate = eventDate;
         this.description = description;
         this.location = location;
     }

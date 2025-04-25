@@ -1,8 +1,6 @@
-package com.api.bandlogs_manager.dto;
+package com.api.bandlogs_manager.dtos;
 
-import com.api.bandlogs_manager.enums.UserRole;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -13,8 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
-@Builder
-public class UserDTO {
+public class LoginUserDTO {
     private String nickname;
     private String password;
 }
