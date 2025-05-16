@@ -43,7 +43,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain) throws ServletException, IOException {
 
-        if (!request.getServletPath().matches("/api/v1/auth/registro|/api/v1/auth/login")) {
+        if (request.getServletPath().matches("/api/v1/auth/registro|/api/v1/auth/login")) {
+            filterChain.doFilter(request, response);
+        } else {
             final String authorizationHeader = request.getHeader("Authorization");
             String token = null;
 
@@ -63,9 +65,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     usernamePasswordAuthenticationToken
                             .setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                    filterChain.doFilter(request, response);
                 }
             }
         }
-        filterChain.doFilter(request, response);
     }
 }

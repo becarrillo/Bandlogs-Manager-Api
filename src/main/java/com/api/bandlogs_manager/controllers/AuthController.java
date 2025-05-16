@@ -4,7 +4,6 @@ import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,11 +53,5 @@ public class AuthController {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @PreAuthorize("hasRole('USER')")
-    @GetMapping(path = "/check-auth")
-    public ResponseEntity<String> checkAuth() {
-        return new ResponseEntity<>("Autenticado!", HttpStatus.OK);
     }
 }
