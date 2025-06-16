@@ -5,9 +5,9 @@ spring:
   application:
     name: bandlogs-manager
   datasource:
-    url: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
-    username: SYSTEM
-    password: $DB_PASSWORD
+    url: jdbc:oracle:thin:@//${DB_HOSTNAME}:${DB_PORT}/FREEPDB1
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driverClassName: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
@@ -18,7 +18,7 @@ spring:
     show-sql: true
 
 jwt:
-  secret: $SECRET_KEY
+  secret: ${JWT_SECRET}
 
 logging:
   level:
