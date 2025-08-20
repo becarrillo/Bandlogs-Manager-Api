@@ -37,7 +37,6 @@ public class Band {
     private String director;
     
     @ManyToMany(fetch = FetchType.LAZY)         // Db entity relationship
-    @JsonManagedReference
     @JoinTable(name = "users_bands",
             joinColumns = @JoinColumn(name = "band_id", referencedColumnName = "band_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id", referencedColumnName = "user_id"))

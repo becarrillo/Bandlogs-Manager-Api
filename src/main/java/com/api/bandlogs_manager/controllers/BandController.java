@@ -208,20 +208,4 @@ public class BandController {
                 throw new RuntimeException(e);
             }
     }
-
-    @PutMapping(path = "/{bandId}/usuarios/eliminar")
-    public ResponseEntity<Band> removeBandMemberUser(
-        @RequestHeader("Authorization") String authHeader,
-        @PathVariable("bandId") short id,
-        @RequestBody User user) {
-            Band updatedBand = null;
-            try {
-                final String authUsername = this.jwtUtil.extractUsername(
-                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-                updatedBand = this.bandService.removeMemberUser(id, user, authUsername);
-                return new ResponseEntity<>(updatedBand, HttpStatus.OK);
-            } catch (ResourceNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-    }
 }

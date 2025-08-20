@@ -175,25 +175,4 @@ public class BandService {
         }
         return null;
     }
-
-    /**
-     * @param bandId unique id number of band wich is related with the event to add
-     * @param user entity to add to band
-     * @param authUsername user who is authenticated and who makes the request
-     */
-    public Band removeMemberUser(short bandId, User user, String authUsername) {
-        final Band foundBand = getBandById(bandId);
-        if (!authUsername.equals(foundBand.getDirector()))
-            throw new HttpClientErrorException(HttpStatusCode.valueOf(401));
-        final List<User> bandUsers = foundBand.getUsers();
-        if (foundBand
-                .getUsers()
-                .stream()
-                .anyMatch(u ->  u.getUserId()==user.getUserId())) {// check the user is a member of the band
-                    bandUsers = bandUsers.stream().filter(u -> !u.equals(user)).collect(Collectors.toList());
-                    foundBand.setUsers(bandUsers);
-                    return this.bandRepository.saveAndFlush(foundBand);
-        }
-        return null;
-    }
 }
