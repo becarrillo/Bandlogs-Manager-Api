@@ -1,12 +1,17 @@
 package com.api.bandlogs_manager.entities;
 
-import com.api.bandlogs_manager.enums.Tonality;
+import com.api.bandlogs_manager.enums.Pitch;
+
 import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.springframework.lang.NonNull;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -14,9 +19,8 @@ import java.util.List;
  * Author: Brando Eli Carrillo Perez
  */
 @NoArgsConstructor
-@AllArgsConstructor
 @Entity
-@Table(name = "song")
+@Table(name = "songs")
 @Data
 public class Song {
     @Id
@@ -24,11 +28,30 @@ public class Song {
     @Column(name = "song_id")
     private int songId;
 
+    @NonNull
     private String title;
-    /**A number that represents armony tonality in which the musicalization
-     * of this is agreed, from 0 to 23 including minors tonalities**/
+
+    /** sound tone Pitch type enum value of this song **/
     @Enumerated(EnumType.ORDINAL)
-    private Tonality tonality;
+    @NonNull
+    private Pitch pitch;
+
+    /** tonality suffix of this song, e.g.: 'Maj7' or 'm' or 'add9' **/
+    @NonNull
+    private String tonalitySuffix = "";
+
+    /** 
+     * List of all the chords with format name-suffix (joined by ';')
+     * character, in which the music of the song is compound **/
+    @Column(name = "progression")
+    @ElementCollection
+    @CollectionTable(
+        name = "songs_progressions",
+        joinColumns = @JoinColumn(
+            name = "song_id",
+            referencedColumnName = "song_id"))
+    @NonNull
+    private List<String> progression = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JsonBackReference
@@ -36,4 +59,26 @@ public class Song {
         joinColumns = @JoinColumn(name = "song_id", referencedColumnName = "song_id"),
         inverseJoinColumns = @JoinColumn(name = "event_id", referencedColumnName = "event_id"))
     private List<Event> events;
+
+    public Song(int songId,
+                String title,
+                Pitch pitch,
+                String tonalitySuffix,
+                List<String> progression) {
+                    this.songId = songId;
+                    this.title = title;
+                    this.pitch = pitch;
+                    this.tonalitySuffix = tonalitySuffix;
+                    this.progression = progression;
+                }
+
+    public Song(String title,
+                Pitch pitch,
+                String tonalitySuffix,
+                List<String> progression) {
+                    this.title = title;
+                    this.pitch = pitch;
+                    this.tonalitySuffix = tonalitySuffix;
+                    this.progression = progression;
+                }
 }

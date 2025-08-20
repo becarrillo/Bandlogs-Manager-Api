@@ -11,12 +11,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.api.bandlogs_manager.services.BandMemberDetailsService;
 
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.Getter;
 
 /**
  * Project: bandlogs-manager
@@ -26,9 +24,6 @@ import lombok.Getter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final BandMemberDetailsService bandMemberDetailsService;
     private final JwtUtil jwtUtil;
-
-    @Getter
-    private Claims claims = null;
 
     private String username = null;
 
@@ -43,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain) throws ServletException, IOException {
 
-        if (request.getServletPath().matches("/api/v1/auth/registro|/api/v1/auth/login")) {
+        if (request.getServletPath().matches("/api/v1/usuarios/registro|/api/v1/auth/login")) {
             filterChain.doFilter(request, response);
         } else {
             final String authorizationHeader = request.getHeader("Authorization");
@@ -52,7 +47,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (authorizationHeader!=null && authorizationHeader.startsWith("Bearer ")) {
                 token = authorizationHeader.substring(7);
                 username = jwtUtil.extractUsername(token);
-                claims = jwtUtil.extractAllClaims(token);
             }
             if (username!=null && SecurityContextHolder.getContext().getAuthentication()==null) {
                 final UserDetails userDetails = bandMemberDetailsService.loadUserByUsername(username);

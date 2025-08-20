@@ -17,7 +17,10 @@ import lombok.Getter;
 
 /**
  * Project: bandlogs-manager
- * Author: Brando Eli Carrillo Perez
+ * @author Brando Eli Carrillo Perez
+ * 
+ * Description: This service loads user details for band members and retrieves 
+ * user information from the UserRepository and constructs a UserDetails object.
  */
 @Service
 public class BandMemberDetailsService implements UserDetailsService {
@@ -30,14 +33,29 @@ public class BandMemberDetailsService implements UserDetailsService {
         this.userRepository = userRepository;
     }
 
+    /**
+     * This method is used to load user details by username (nickname).
+     * It retrieves the user from the repository and constructs a UserDetails object with the user's role.
+     * If the user is not found, it throws a UsernameNotFoundException.
+     *
+     * @param username The nickname of the user to be loaded.
+     * @return UserDetails object containing user information and authorities.
+     */
     @Override
     public UserDetails loadUserByUsername(String username) {
-        userDetails = userRepository.findByNickname(username).get();
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority(userDetails.getRole().toString());
+        userDetails = userRepository.findByNickname(username);
+       
         final Set<SimpleGrantedAuthority> authorities = new HashSet<>();
-
         if (!Objects.isNull(userDetails)) {
-            authorities.add(authority);
+            final SimpleGrantedAuthority authority = new SimpleGrantedAuthority(userDetails.getRole().toString());
+            // Add the role to the authorities set If the user is an ADMIN, add ROLE_USER as well This is to en-
+            // sure that ADMIN users have both roles This is a common practice in role-based access control systems
+            if (userDetails.getRole().toString().equals("ADMIN")) {
+                authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                authorities.add(authority);
+            } else {
+                authorities.add(authority);
+            }
             
             return new org.springframework.security.core.userdetails.User(
                 userDetails.getNickname(),

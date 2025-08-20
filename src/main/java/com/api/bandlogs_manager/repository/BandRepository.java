@@ -1,6 +1,9 @@
 package com.api.bandlogs_manager.repository;
 
 import com.api.bandlogs_manager.entities.Band;
+
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,4 +14,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BandRepository extends JpaRepository<Band, Short> {
     Band findByName(String name);
+    List<Band> findByDirector(String director);
 }

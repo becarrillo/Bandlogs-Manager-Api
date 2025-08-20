@@ -1,10 +1,13 @@
 package com.api.bandlogs_manager.enums;
 
 /**
- * Project: bandlogs-manager
- * Author: Brando Eli Carrillo Perez
+ * Role to assign to the user details authorities and managing user authorizations by 
+ * PreAuthorize and PostAuthorize annotations which could be passed it with "hasRole(${role})"
+ * having as $role argument to "USER" or "ADMIN" omitting "ROLE_" prefix by default.
+ * Project: bandlogs-manager.
+ * Author: Brando Eli Carrillo Perez.
  */
 public enum UserRole {
-    ADMIN,
-    USER
+    ROLE_ADMIN,
+    ROLE_USER
 }

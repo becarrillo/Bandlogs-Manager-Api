@@ -1,12 +1,27 @@
 package com.api.bandlogs_manager.controllers;
 
 import com.api.bandlogs_manager.entities.Band;
+import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.User;
+
+import com.api.bandlogs_manager.enums.UserRole;
+
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
+
+import com.api.bandlogs_manager.security.JwtUtil;
+
 import com.api.bandlogs_manager.services.BandService;
+
+import io.jsonwebtoken.Claims;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
+
+import java.net.URLDecoder;
+
+import java.nio.charset.StandardCharsets;
 
 import java.util.Set;
 
@@ -18,74 +33,160 @@ import java.util.Set;
 @RequestMapping("/api/v1/bandas")
 public class BandController {
     private final BandService bandService;
+    private final JwtUtil jwtUtil;
 
-    public BandController(BandService bandService) {
+    public BandController(BandService bandService, JwtUtil jwtUtil) {
         this.bandService = bandService;
+        this.jwtUtil = jwtUtil;
     }
 
     @GetMapping("/{bandId}")
-    public ResponseEntity<Band> getBandById(@PathVariable("bandId") Short id) {
-        final Band foundBand = this.bandService.getBandById(id);
-        return new ResponseEntity<>(foundBand, HttpStatus.OK);
+    public ResponseEntity<Band> getBandById(@RequestHeader("Authorization") String authHeader, @PathVariable("bandId") Short id) {
+        try {
+            final Claims claims = this.jwtUtil.extractAllClaims(authHeader.replace("Bearer ", ""));
+            final String loggedInUserNickname = claims.getSubject();
+            final UserRole userRole = UserRole.valueOf(claims.get("role", String.class));
+            final Band foundBand = this.bandService.getBandById(id);
+            if (!(foundBand.getDirector().equals(loggedInUserNickname)  
+                || foundBand.getUsers()
+                    .stream()
+                    .filter(u -> u.getNickname().equals(loggedInUserNickname))
+                    .findFirst()
+                    .isPresent())
+                || userRole.equals(UserRole.ROLE_ADMIN)) {
+                    // It handles the response when authenticated user is not member or director related with band
+                    return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            }
+            return new ResponseEntity<>(foundBand, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    @GetMapping(path = "/bandas", params = {"event"})
-    public ResponseEntity<Band> getBandByEventId(
-            @PathVariable("eventId") String id,
-            @RequestParam("event") String eventId) {
-
-        final Band foundBand = this.bandService.getBandByEventId(eventId);
-        if (foundBand==null) {
-            throw new ResourceNotFoundException();
+    @GetMapping(path = "/banda", params = {"nombre"})
+    public ResponseEntity<Band> 
+    getBandByName(@RequestHeader("Authorization") String authHeader,@RequestParam("nombre") String name) {
+        try {
+            final String authUsername = this.jwtUtil.extractUsername(
+                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+            final Band foundBand = this.bandService.getBandByName(name);
+            if (!(foundBand.getDirector().equals(authUsername) 
+                || foundBand.getUsers()
+                    .stream()
+                    .filter(u -> u.getNickname().equals(authUsername))
+                    .findFirst()
+                    .isPresent())) {
+                        // It handles the response when authenticated user is not member or director related with band
+                        return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            }
+            return new ResponseEntity<>(foundBand, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return new ResponseEntity<>(
-                foundBand,
-                HttpStatus.OK);
     }
 
     @GetMapping
     public ResponseEntity<Set<Band>> listAllBands() {
         try {
             return new ResponseEntity<>(
-                    this.bandService.getAllBands(),
+                    this.bandService.getAllBandsSet(),
                     HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    @PostMapping(path = "/agregar")
-    public ResponseEntity<Band> addBand(@RequestBody Band band) {
+    @GetMapping(path = "/por-director", params = {"nombre-de-usuario"})
+    public ResponseEntity<Set<Band>> listBandsByDirector(
+        @RequestHeader("Authorization") String authHeader,
+        @RequestParam("nombre-de-usuario") String nickname
+    ) {
         try {
-            return new ResponseEntity<>(
-                    this.bandService.saveBand(band),
-                    HttpStatus.CREATED);
+            final String loggedInUserNickname = this.jwtUtil.extractUsername(
+                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+            final Set<Band> bands = this.bandService.getBandsSetByDirectorAndLoggedInUserNicknames(
+                URLDecoder.decode(nickname, StandardCharsets.UTF_8),
+                loggedInUserNickname);
+            return new ResponseEntity<>(bands, HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    @PatchMapping(path = "/{bandId}/personas/agregar")
-    public ResponseEntity<Band> addPersonToBand(
-            @PathVariable("bandId") short id,
-            @RequestBody User user
+    @GetMapping(path = "/por-miembro", params = {"nombre-de-usuario"})
+    public ResponseEntity<Set<Band>> listBandsByMemberUserNickname(
+        @RequestHeader("Authorization") String authHeader,
+        @RequestParam("nombre-de-usuario") String nickname
     ) {
-        Band band = this.bandService.addPersonToBand(id, user);
+        final String loggedInUserNickname = this.jwtUtil.extractUsername(
+                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+        Set<Band> bands;
+        bands = this.bandService
+                .getBandsSetByMemberUserAndLoggedInUserNicknames(
+                    URLDecoder.decode(nickname, StandardCharsets.UTF_8),
+                    loggedInUserNickname);
+        try {
+            return new ResponseEntity<>(
+                bands,
+                HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @PostMapping(path = "/agregar")
+    public ResponseEntity<Band> addBand(
+        @RequestHeader("Authorization") String authHeader, @RequestBody Band band) {
+            try {
+                final String loggedInUserNickname = this.jwtUtil.extractUsername(
+                    authHeader.replace("Bearer ", ""));// authenticated user nickname by JWT
+                return new ResponseEntity<>(
+                        this.bandService.saveBand(band, loggedInUserNickname),
+                        HttpStatus.CREATED);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+    }
+
+    @PatchMapping(path = "/{bandId}/eventos/agregar")
+    public ResponseEntity<Band> patchEventToBand(
+        @RequestHeader("Authorization") String authHeader,
+        @PathVariable("bandId") short id,
+        @RequestBody Event event
+    ) {
+        try {
+            final String loggedInUserNickname = this.jwtUtil.extractUsername(
+                authHeader.substring(7));   // get me authenticated user nickname by JWT
+            final Band patchedBand = this.bandService.addEventToBand(id, event, loggedInUserNickname);
+            return new ResponseEntity<>(
+                patchedBand,
+                HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @PatchMapping(path = "/{bandId}/usuarios/agregar")
+    public ResponseEntity<Band> patchMemberUserToBand(
+        @RequestHeader("Authorization") String authHeader,
+        @PathVariable("bandId") short id,
+        @RequestBody User user
+    ) {
+        final String authUsername=this.jwtUtil.extractUsername(
+            authHeader.substring(7));// get me authenticated user nickname by JWT
+        final Band band = this.bandService.addMemberUserToBand(id, user, authUsername);
         if (band==null) {
-            throw new ResourceNotFoundException(
-                    "Error en verificación de la banda: no existe el "+
-                            "objeto a través de su id, la inserción de "+
-                            "persona no puede ser efectuada en una instan-"+
-                            " cia que no existe");
+            throw new RuntimeException(
+                    "Error al agregar miembro a la banda: " +
+                            "el usuario ya es miembro de la banda.");
         }
         return new ResponseEntity<>(band, HttpStatus.OK);
     }
 
-    @DeleteMapping(path = "{bandId}/eliminar")
-    public ResponseEntity<Void> deleteBandById(@PathVariable("bandId") short id) {
-
+    @DeleteMapping(path = "/eliminar")
+    public ResponseEntity<Void> deleteBand(@RequestBody Band band) {
         try {
-            this.bandService.deleteBandyId(id);
+            this.bandService.deleteBand(band);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -93,17 +194,34 @@ public class BandController {
     }
 
     @PutMapping(path = "/{bandId}/modificar")
-    public ResponseEntity<Band> updateBand(
-            @PathVariable("bandId") Short id,
-            @RequestBody Band band) {
-        final Band updatedBand = this.bandService.updateBand(id, band);
-        if (updatedBand==null)
-            throw new ResourceNotFoundException(
-                    "Id provisto no representa una instancia de Banda existente");
-        try {
-            return new ResponseEntity<>(band, HttpStatus.OK);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public ResponseEntity<Band> updateBandById(
+        @RequestHeader("Authorization") String authHeader,
+        @PathVariable("bandId") short id,
+        @RequestBody Band band) {
+            Band updatedBand = null;
+            try {
+                final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+                updatedBand = this.bandService.updateBand(id, band, authUsername);
+                return new ResponseEntity<>(updatedBand, HttpStatus.OK);
+            } catch (ResourceNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+    }
+
+    @PutMapping(path = "/{bandId}/usuarios/eliminar")
+    public ResponseEntity<Band> removeBandMemberUser(
+        @RequestHeader("Authorization") String authHeader,
+        @PathVariable("bandId") short id,
+        @RequestBody User user) {
+            Band updatedBand = null;
+            try {
+                final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+                updatedBand = this.bandService.removeMemberUser(id, user, authUsername);
+                return new ResponseEntity<>(updatedBand, HttpStatus.OK);
+            } catch (ResourceNotFoundException e) {
+                throw new RuntimeException(e);
+            }
     }
 }

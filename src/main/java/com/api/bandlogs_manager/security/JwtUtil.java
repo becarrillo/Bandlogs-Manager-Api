@@ -11,8 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import com.api.bandlogs_manager.dtos.LoginUserDTO;
 import com.api.bandlogs_manager.entities.User;
+
 import com.api.bandlogs_manager.repository.UserRepository;
 
 import io.jsonwebtoken.Claims;
@@ -35,26 +35,21 @@ public class JwtUtil {
         this.userRepository = userRepository;
     }
 
-    public String createToken(LoginUserDTO dto) {
-        final Optional<User> userOpt = userRepository.findByNickname(dto.getNickname());
-        if (userOpt.isPresent()) {
-            User userEntity;
-            userEntity = userOpt.get();
-            final Map<String, Object> claims = new HashMap<>();
-            claims.put("id", userEntity.getUserId());
-            claims.put("role", userEntity.getRole());
-            final Date now = new Date(System.currentTimeMillis());
-            final Date expiration = new Date(now.getTime() + 900000L);
-            final SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
-            return Jwts.builder()
-                    .subject(userEntity.getNickname())
-                    .claims(claims)
-                    .issuedAt(now)
-                    .expiration(expiration)
-                    .signWith(key)
-                    .compact();
-        }
-        return null;
+    public String createToken(String nickname) {
+        final User userEntity = userRepository.findByNickname(nickname);
+        final Map<String, Object> claims = new HashMap<>();
+        claims.put("id", userEntity.getUserId());
+        claims.put("role", userEntity.getRole().toString());
+        final Date now = new Date(System.currentTimeMillis());
+        final Date expiration = new Date(now.getTime() + 1200000L);
+        final SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
+        return Jwts.builder()
+                .subject(userEntity.getNickname())
+                .claims(claims)
+                .issuedAt(now)
+                .expiration(expiration)
+                .signWith(key)
+                .compact();
     }
     
     public boolean validateToken(String token, UserDetails userDetails) {
