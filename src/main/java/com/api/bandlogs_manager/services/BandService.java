@@ -4,7 +4,6 @@ import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.User;
 
-
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 
 import com.api.bandlogs_manager.repository.BandRepository;
@@ -47,7 +46,7 @@ public class BandService {
     public Band getBandByName(String name) {
         final Optional<Band> bandOpt = Optional.of(this.bandRepository.findByName(name));
         return bandOpt.orElseThrow(() -> new ResourceNotFoundException(
-                "No existe banda alguna con el nombre de "+name));
+                "No existe banda alguna con el nombre de " + name));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -58,14 +57,18 @@ public class BandService {
     }
 
     /**
-     * This method is used to get all bands where user who is authenticated is the director.
-     * @param director is the nickname of the user who created or else manages the obtained bands
-     * @param loggedInUserNickname is the nickname of the user who is authenticated and who makes
-     * the request. */
+     * This method is used to get all bands where user who is authenticated is the
+     * director.
+     * 
+     * @param director             is the nickname of the user who created or else
+     *                             manages the obtained bands
+     * @param loggedInUserNickname is the nickname of the user who is authenticated
+     *                             and who makes
+     *                             the request.
+     */
     public Set<Band> getBandsSetByDirectorAndLoggedInUserNicknames(
-        String director,
-        String loggedInUserNickname
-    ) {
+            String director,
+            String loggedInUserNickname) {
         final Set<Band> bands = this.bandRepository
                 .findByDirector(director)
                 .stream()
@@ -78,36 +81,33 @@ public class BandService {
     }
 
     /**
-     * This method retrieves all bands, as a Set, where a particular user and the user who
+     * This method retrieves all bands, as a Set, where a particular user and the
+     * user who
      * is authenticated are members.
-     * @param nickname related member user nickname to retrieve bands
-     * @param loggedInUserNickname is the nickname of the user who is authenticated and who
-     * makes the request*/
-    public Set<Band> getBandsSetByMemberUserAndLoggedInUserNicknames(
-        String nickname,
-        String loggedInUserNickname
-    ) {
-        List<Band> bands = this.bandRepository.findAll();
-        return bands
-            .stream()
-            .filter(b -> b
-                    .getUsers()
-                    .stream()
-                    .anyMatch(user -> user.getNickname().equals(nickname)) 
-                            && b.getUsers()
-                                .stream()
-                                .anyMatch(otherUser -> otherUser.getNickname().equals(loggedInUserNickname)))
-            .collect(Collectors.toSet());
+     * 
+     * @param nickname             related member user nickname to retrieve bands
+     * @param loggedInUserNickname is the nickname of the user who is authenticated
+     *                             and who
+     *                             makes the request
+     */
+    public Set<Band> getBandsSetByLoggedInMemberUserNickname(String loggedInUserNickname) {
+        final List<Band> bandsList = this.bandRepository.findAll();
+        return bandsList.stream()
+                .filter(band -> band.getUsers()
+                        .stream()
+                        .anyMatch(user -> user.getNickname().equals(loggedInUserNickname)))
+                .collect(Collectors.toSet());
     }
 
     /**
-     * This method is used to save a new band and it is only 
+     * This method is used to save a new band and it is only
      * authorized for platform registered users.
+     * 
      * @param band Band to be saved
      * @return Band saved
      */
     public Band saveBand(Band band, String director) {
-        band.setDirector(director);   // to set user who is authenticated and will create this band
+        band.setDirector(director); // to set user who is authenticated and will create this band
         return this.bandRepository.save(band);
     }
 
@@ -117,26 +117,35 @@ public class BandService {
     }
 
     /**
-     * @param bandId unique id number of band to update
-     * @param band entity to update
-     * @param loggedInUserNickname user who is authenticated and who makes the request
+     * @param bandId               unique id number of band to update
+     * @param band                 entity to update
+     * @param loggedInUserNickname user who is authenticated and who makes the
+     *                             request
      */
     public Band updateBand(Short bandId, Band band, String loggedInUserNickname) {
         final Band foundBand = getBandById(bandId);
-        // ensure the band to be updated has as director property the authenticated user nickname value
+        // ensure the band to be updated has as director property the authenticated user
+        // nickname value
         if (!loggedInUserNickname.equals(foundBand.getDirector()))
             throw new HttpClientErrorException(HttpStatusCode.valueOf(401));
-        if (foundBand.getBandId()!=band.getBandId()) {
+        if (foundBand.getBandId() != band.getBandId()) {
             throw new IllegalArgumentException(
-                "Conflicto entre el argumento id de banda y la propiedad id de banda, no coinciden");
+                    "Conflicto entre el argumento id de banda y la propiedad id de banda, no coinciden");
         }
-        return this.bandRepository.saveAndFlush(band);
+        foundBand.setName(band.getName());
+        foundBand.setMusicalGenre(band.getMusicalGenre());
+        foundBand.setDirector(band.getDirector());
+        foundBand.setUsers(band.getUsers());
+        foundBand.setEvents(foundBand.getEvents());
+        return this.bandRepository.save(band);
     }
 
     /**
-     * @param bandId unique id number of band wich is related with the event to add
-     * @param event entity to add to band
-     * @param loggedInUserNickname user who is authenticated and who makes the request
+     * @param bandId               unique id number of band wich is related with the
+     *                             event to add
+     * @param event                entity to add to band
+     * @param loggedInUserNickname user who is authenticated and who makes the
+     *                             request
      */
     public Band addEventToBand(short bandId, Event event, String loggedInUserNickname) {
         final Band foundBand = getBandById(bandId);
@@ -146,18 +155,17 @@ public class BandService {
                 .getEvents()
                 .stream()
                 .anyMatch(e -> e.getEventId().equals(event.getEventId()))) {// check if event already exists
-                    throw new IllegalArgumentException(
-                        "Ya existe un evento con el mismo nombre, por favor modifíquelo");
+            throw new IllegalArgumentException("Ya existe el evento");
         }
         List<Event> events = foundBand.getEvents();
         events.add(event);
         foundBand.setEvents(events);
-        return this.bandRepository.saveAndFlush(foundBand);
+        return this.bandRepository.save(foundBand);
     }
 
     /**
-     * @param bandId unique id number of band wich is related with the event to add
-     * @param user entity to add to band
+     * @param bandId       unique id number of band wich is related with the event                  to add
+     * @param user         entity to add to band
      * @param authUsername user who is authenticated and who makes the request
      */
     public Band addMemberUserToBand(short bandId, User user, String authUsername) {
@@ -168,11 +176,28 @@ public class BandService {
         if (foundBand
                 .getUsers()
                 .stream()
-                .noneMatch(u ->  u.getUserId()==user.getUserId())) {// check the user is not a member of the band
-                    bandUsers.add(user);
-                    foundBand.setUsers(bandUsers);
-                    return this.bandRepository.saveAndFlush(foundBand);
+                .noneMatch(u -> u.getUserId() == user.getUserId())) {// check the user is not a member of the band
+            bandUsers.add(user);
+            foundBand.setUsers(bandUsers);
+            return this.bandRepository.save(foundBand);
         }
         return null;
+    }
+
+    /**
+     * It adds the user to related Bands before some changes
+     * @param oldUser the User entity before some changes
+     * @param user         entity to add to band
+     */
+    public void addMemberUserToManyBands(User oldUser, User user, Set<Band> bands) {
+        for (Band band : bands) {
+            if (bands.stream().anyMatch(b -> b.getUsers().stream().anyMatch(u -> u.getUserId()==user.getUserId()))) {
+                final List<User> bandUsers = band.getUsers();
+                bandUsers.remove(oldUser);
+                bandUsers.add(user);
+                band.setUsers(bandUsers);
+                this.bandRepository.saveAndFlush(band);
+            }
+        }
     }
 }

@@ -41,7 +41,7 @@ public class JwtUtil {
         claims.put("id", userEntity.getUserId());
         claims.put("role", userEntity.getRole().toString());
         final Date now = new Date(System.currentTimeMillis());
-        final Date expiration = new Date(now.getTime() + 1200000L);
+        final Date expiration = new Date(now.getTime() + 7200000L);
         final SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
         return Jwts.builder()
                 .subject(userEntity.getNickname())

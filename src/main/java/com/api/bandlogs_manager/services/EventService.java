@@ -6,14 +6,6 @@ import com.api.bandlogs_manager.entities.Song;
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 import com.api.bandlogs_manager.repository.EventRepository;
 
-import org.springframework.http.HttpStatusCode;
-
-import org.springframework.data.repository.query.Param;
-
-import org.springframework.web.client.HttpClientErrorException;
-
-import org.springframework.security.access.prepost.PreAuthorize;
-
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -54,22 +46,19 @@ public class EventService {
         return this.eventRepository.save(event);
     }
 
-    @PreAuthorize("#ev.band.director == authentication.name")
-    public void deleteEvent(@Param("ev") Event event) {
+    public void deleteEvent(Event event) {
         this.eventRepository.delete(event);
     }
 
     public Event updateEventById(String id, Event event) {
         final Optional<Event> eventOpt = this.eventRepository.findById(id);
-        if (event.getEventId()!=id)
+        if (eventOpt.isPresent() && !event.getEventId().equals(eventOpt.get().getEventId()))
             throw new IllegalArgumentException(
                 "el id del argumento evento no concuerda ".concat(
                     "con el id de evento a modificar en la variable de la ruta"));
         if (eventOpt.isEmpty())
-            throw new ResourceNotFoundException("evento no encontrado con el id sugerido en la consulta");            
-        if (!event.getBand().getDirector().equals(getAuthenticatedBandDirectorByEvent(eventOpt.get())))
-            throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
-        return this.eventRepository.saveAndFlush(event);
+            throw new ResourceNotFoundException("evento no encontrado con el id sugerido en la consulta");
+        return this.eventRepository.save(event);
     }
 
     public Event addSongToEvent(String eventId, Song song) {
@@ -79,11 +68,6 @@ public class EventService {
         final Event event = eventOpt.get();
         final Set<Song> repertoire = event.getRepertoire();
         repertoire.add(song);
-        return this.eventRepository.saveAndFlush(event);
-    }
-
-    @PreAuthorize("#ev.band.director == authentication.name")
-    public String getAuthenticatedBandDirectorByEvent(@Param("ev") Event event) {
-        return event.getBand().getDirector();
+        return this.eventRepository.save(event);
     }
 }

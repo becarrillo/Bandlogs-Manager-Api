@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.*;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -18,8 +19,9 @@ import jdk.jfr.Unsigned;
 /**
  * Project: bandlogs-manager
  * Author: Brando Eli Carrillo Perez
- */
+*/
 @NoArgsConstructor
+@AllArgsConstructor
 @Data
 @Entity
 @Table(name = "bands", uniqueConstraints = @UniqueConstraint(columnNames = {"name"}))
@@ -47,7 +49,7 @@ public class Band {
     @NonNull
     private MusicalGenre musicalGenre;
 
-    @OneToMany(fetch = FetchType.LAZY)   // Db entity relationship
+    @OneToMany(fetch = FetchType.LAZY, cascade = {CascadeType.REMOVE, CascadeType.MERGE})   // Db entity relationship
     @JsonManagedReference
     @JoinTable(name = "band_events",
             joinColumns = @JoinColumn(name = "band_id", referencedColumnName = "band_id"),

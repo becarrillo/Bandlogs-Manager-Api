@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -21,6 +22,7 @@ import org.springframework.lang.NonNull;
  * @author  Brando Eli Carrillo Perez
  */
 @NoArgsConstructor
+@AllArgsConstructor
 @Data
 @Entity
 @Table(name = "events")
@@ -37,7 +39,7 @@ public class Event {
     @NonNull
     private String description;
     /**From which creates many of these events (especifically by the director)**/
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JsonBackReference
     @JoinTable(name = "band_events",
             joinColumns = @JoinColumn(name = "event_id", referencedColumnName = "event_id"),
@@ -46,19 +48,24 @@ public class Event {
 
     private String location;
     /** It represents into a serie, each song through title & tonality pair values**/
-    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     @JoinTable(name = "events_songs",
             joinColumns = @JoinColumn(name = "event_id", referencedColumnName = "event_id"),
             inverseJoinColumns = @JoinColumn(name = "song_id", referencedColumnName = "song_id"))
-    @NonNull
     private Set<Song> repertoire = new HashSet<Song>();
 
-    @NonNull
     private EventState state = EventState.PLANNED;
 
-    public Event(LocalDate date, String description, String location) {
+    public Event(LocalDate date, String description, String location, Set<Song> repertoire) {
         this.date = date;
         this.description = description;
         this.location = location;
+        this.repertoire = repertoire;
+    }
+
+    public Event(LocalDate date, String description, Set<Song> repertoire) {
+        this.date = date;
+        this.description = description;
+        this.repertoire = repertoire;
     }
 }

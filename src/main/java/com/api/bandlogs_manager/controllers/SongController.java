@@ -44,20 +44,10 @@ public class SongController {
 
     @GetMapping(path = "/{songId}")
     public ResponseEntity<Song> getSongById(
-        @RequestHeader("Authorization") String authHeader,
         @PathVariable("songId") int id) 
     {
-        final String loggedInUserNickname = this.songService
-                .getAuthenticatedUsername(
-                    authHeader.replace("Bearer ", ""));
-        List<Event> events = null;
         try {
             final Song foundSongById = this.songService.getSongById(id);
-            events = this.songService.filterSongEventsByAuthorizedBandDirector(
-                        foundSongById.getEvents(),
-                        loggedInUserNickname);
-            if (events == null || events.size()==0)
-                return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             return new ResponseEntity<>(foundSongById, HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -66,20 +56,10 @@ public class SongController {
 
     @PatchMapping(path = "/{songId}/transportar")
     public ResponseEntity<Song> transportSong(
-        @RequestHeader("Authorization") String authHeader,
         @PathVariable("songId") int id,
         @RequestBody TonalityDTO dto) {
-            List<Event> events = null;
             Song foundSongById = null;
             try {
-                final String loggedInUserNickname = this.songService.getAuthenticatedUsername(
-                    authHeader.replace("Bearer ", ""));
-                foundSongById = this.songService.getSongById(id);
-                events = this.songService.filterSongEventsByAuthorizedBandDirector(
-                        foundSongById.getEvents(),
-                        loggedInUserNickname);
-                if (events == null || events.size()==0)
-                    return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
                 final Song transportedSong = this.songService.transportSong(foundSongById, dto);
                 return new ResponseEntity<>(
                         this.songService.updateSong(id, transportedSong),
@@ -90,45 +70,25 @@ public class SongController {
     }
 
     @PutMapping(path = "/{songId}/modificar")
-    public ResponseEntity<Song> updateSong(
-        @RequestHeader("Authorization") String authHeader,
-        @PathVariable("songId") int id, @RequestBody Song song) {
-            List<Event> events = null;
-            try {
-                final String loggedInUserNickname = this.songService.getAuthenticatedUsername(
-                    authHeader.replace("Bearer ", ""));
-                final Song foundSongById = this.songService.getSongById(id);
-                events = this.songService.filterSongEventsByAuthorizedBandDirector(
-                        foundSongById.getEvents(),
-                        loggedInUserNickname);
-                if (events == null || events.size()==0)
-                    return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);        
-                final Song updatedSong = this.songService.updateSong(id, song);
-                return new ResponseEntity<>(
-                    updatedSong,
-                    HttpStatus.OK
-                );
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            
+    public ResponseEntity<Song> updateSong(@PathVariable("songId") int id, @RequestBody Song song) {
+        try {    
+            final Song updatedSong = this.songService.updateSong(id, song);
+            return new ResponseEntity<>(
+                updatedSong,
+                HttpStatus.OK
+            );
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @DeleteMapping(path = "/eliminar")
-        public ResponseEntity<Void> deleteSong(@RequestHeader("Authorization") String authHeader,@RequestBody Song song) {
-            List<Event> events = null;
-            try {
-                final String loggedInUserNickname = this.songService.getAuthenticatedUsername(
-                    authHeader.replace("Bearer ", ""));
-                events = this.songService.filterSongEventsByAuthorizedBandDirector(
-                        song.getEvents(),
-                        loggedInUserNickname);
-                if (events == null || events.size()==0)
-                    return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);  
-                this.songService.deleteSong(song); // delete song if user is member at least one band of its event
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            return new ResponseEntity<>(HttpStatus.OK);
+    public ResponseEntity<Void> deleteSong(@RequestBody Song song) {
+        try {
+            this.songService.deleteSong(song); // delete song if logged-in user is director at least one band of its event
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
 }

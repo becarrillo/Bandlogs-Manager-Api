@@ -71,14 +71,6 @@ public class SongService {
             throw new HttpClientErrorException(HttpStatusCode.valueOf(401));        // UNAUTHORIZED
         return songs;
     }
-
-    public String getAuthenticatedUsername(String token) {
-        try {
-            return this.jwtUtil.extractUsername(token);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
     
     public Song getSongById(Integer id) {
         final Optional<Song> songOpt = this.songRepository.findById(id);
@@ -93,19 +85,28 @@ public class SongService {
         return filteredEvents;
     }
 
+    public List<Event> filterSongEventsByRelatedBandMemberUser(List<Event> events, String loggedInUserNickname) {
+        final List<Event> filteredEvents = events
+            .stream()
+            .filter(event -> event
+                .getBand()
+                .getUsers()
+                .stream()
+                .filter(u -> u.getNickname().equals(loggedInUserNickname)).findFirst().isPresent())
+            .collect(Collectors.toList());
+        return filteredEvents;
+    }
+
     public Song saveSong(Song song) {
-        if (song.getTonalitySuffix()==null || song.getTonalitySuffix().length()==0)
+        if (song.getTonalitySuffix()==null || song.getTonalitySuffix()=="")
             song.setTonalitySuffix(" ");// because Oracle DB persists empty string as null
         return this.songRepository.save(song);
     }
 
     public Song updateSong(int id, Song song) {
-        final Song foundSongById = getSongById(id);
-        foundSongById.setTitle(song.getTitle());
-        foundSongById.setPitch(song.getPitch());
-        foundSongById.setTonalitySuffix(song.getTonalitySuffix());
-        
-        return this.songRepository.saveAndFlush(foundSongById);
+        if (song.getSongId()!=id)
+            throw new IllegalArgumentException();
+        return this.songRepository.saveAndFlush(song);
     }
     
     public Song transportSong(Song song, TonalityDTO newTonality) {
@@ -127,12 +128,12 @@ public class SongService {
             if (progressionSplit.length<2) {
                 tonality = TonalityDTO.builder()
                         .pitch(Pitch.valueOf(progressionSplit[0]))// set pitch that is just before ';' chord string separator
-                        .suffix("")  // set pitch to an empty string because originally chord doesn't have suffix
+                        .suffix("")  // set suffix to an empty string because originally chord doesn't have suffix
                         .build();
             } else {
                 tonality = TonalityDTO.builder()
                         .pitch(Pitch.valueOf(progressionSplit[0]))// set pitch that is just before ';' chord string separator
-                        .suffix(progressionSplit[1])  // set pitch that is just after ';' chord string separator
+                        .suffix(progressionSplit[1])  // set suffix that is just after ';' chord string separator
                         .build();
             }
 
@@ -142,7 +143,7 @@ public class SongService {
 
         song.setPitch(newTonality.pitch);
         song.setProgression(progression);
-        return song;
+        return songRepository.save(song);
     }
 
     public void deleteSong(Song song) {

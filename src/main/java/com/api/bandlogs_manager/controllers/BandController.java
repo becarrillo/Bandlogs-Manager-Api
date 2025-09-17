@@ -113,19 +113,17 @@ public class BandController {
         }
     }
 
-    @GetMapping(path = "/por-miembro", params = {"nombre-de-usuario"})
+    @GetMapping(path = "/por-miembro", params = "nombre-de-usuario")
     public ResponseEntity<Set<Band>> listBandsByMemberUserNickname(
         @RequestHeader("Authorization") String authHeader,
         @RequestParam("nombre-de-usuario") String nickname
     ) {
-        final String loggedInUserNickname = this.jwtUtil.extractUsername(
-                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-        Set<Band> bands;
-        bands = this.bandService
-                .getBandsSetByMemberUserAndLoggedInUserNicknames(
-                    URLDecoder.decode(nickname, StandardCharsets.UTF_8),
-                    loggedInUserNickname);
         try {
+            final String loggedInUserNickname = this.jwtUtil.extractUsername(
+                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+            if (!nickname.equals(loggedInUserNickname))
+                return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            final Set<Band> bands = this.bandService.getBandsSetByLoggedInMemberUserNickname(loggedInUserNickname);
             return new ResponseEntity<>(
                 bands,
                 HttpStatus.OK);

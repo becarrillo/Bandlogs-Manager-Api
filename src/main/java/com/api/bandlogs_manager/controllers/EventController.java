@@ -26,16 +26,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.Song;
 
 import com.api.bandlogs_manager.security.JwtUtil;
 
+import com.api.bandlogs_manager.services.BandService;
 import com.api.bandlogs_manager.services.EventService;
 import com.api.bandlogs_manager.services.SongService;
 
+
+
 import io.jsonwebtoken.Claims;
 
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.api.bandlogs_manager.enums.UserRole;
@@ -48,11 +53,13 @@ import com.api.bandlogs_manager.enums.UserRole;
 @RequestMapping("/api/v1/eventos")
 public class EventController {
     private final EventService eventService;
+    private final BandService bandService;
     private final SongService songService;
     private final JwtUtil jwtUtil;
 
-    public EventController(EventService eventService, SongService songService, JwtUtil jwtUtil) {
+    public EventController(EventService eventService, BandService bandService, SongService songService, JwtUtil jwtUtil) {
         this.eventService = eventService;
+        this.bandService = bandService;
         this.songService = songService;
         this.jwtUtil = jwtUtil;
     }
@@ -119,8 +126,6 @@ public class EventController {
 
     @PostMapping(path = "/agregar")
     public ResponseEntity<Event> addEvent(@RequestBody Event event) {
-        if (this.eventService.getAuthenticatedBandDirectorByEvent(event)==null)
-            throw new HttpClientErrorException(HttpStatusCode.valueOf(401));  // UNAUTHORIZED
         final Set<Song> repertoire = new HashSet<>();
         try {
             for (Song song : event.getRepertoire()) {
@@ -139,8 +144,18 @@ public class EventController {
     }
 
     @DeleteMapping(path = "/eliminar")
-    public ResponseEntity<Void> deleteEvent(@RequestBody Event event) {
+    public ResponseEntity<Void> deleteEvent(@RequestHeader("Authorization") String authHeader,@RequestBody Event event) {
         try {
+            final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+                final Event foundEvent = this.eventService.getEventById(id);
+                final Optional<Band> bandOpt = this.bandService
+                        .getAllBandsSet()
+                        .stream()
+                        .filter(b -> b.getEvents().contains(foundEvent))
+                        .findFirst();
+                if (bandOpt.isEmpty() || !b.getDirector().equals(authUsername))
+                    throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
             this.eventService.deleteEvent(event);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
@@ -150,7 +165,8 @@ public class EventController {
 
     @PutMapping(path = "/{eventId}/modificar")
     public ResponseEntity<Event> updateEvent(
-        @PathVariable("eventId") String id, @RequestBody Event event) {
+        @PathVariable("eventId") String id,
+        @RequestBody Event event) {
             try {
                 return new ResponseEntity<>(
                     this.eventService.updateEventById(id, event),
@@ -161,12 +177,25 @@ public class EventController {
     }
 
     @PatchMapping(path = "/{eventId}/repertorio/agregar")
-    public ResponseEntity<Event> patchSongToEvent(@PathVariable("eventId") String id, @RequestBody Song song) {
-        try {
-            final Event event = this.eventService.addSongToEvent(id, song);
-            return new ResponseEntity<>(event, HttpStatus.OK);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public ResponseEntity<Event> patchSongToEvent(
+        @RequestHeader("Authorization") String authHeader,
+        @PathVariable("eventId") String id,
+        @RequestBody Song song) {
+            try {
+                final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+                final Event foundEvent = this.eventService.getEventById(id);
+                final Optional<Band> bandOpt = this.bandService
+                        .getAllBandsSet()
+                        .stream()
+                        .filter(b -> b.getEvents().contains(foundEvent))
+                        .findFirst();
+                if (bandOpt.isEmpty() || !b.getDirector().equals(authUsername))
+                    throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
+                final Event event = this.eventService.addSongToEvent(id, song);
+                return new ResponseEntity<>(event, HttpStatus.OK);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
     }
 }

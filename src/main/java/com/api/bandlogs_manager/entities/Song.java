@@ -36,9 +36,9 @@ public class Song {
     @NonNull
     private Pitch pitch;
 
-    /** tonality suffix of this song, e.g.: 'Maj7' or 'm' or 'add9' **/
     @NonNull
-    private String tonalitySuffix = "";
+    /** tonality suffix of this song, e.g.: 'Maj7' or 'm' or 'add9' **/
+    private String tonalitySuffix = " ";
 
     /** 
      * List of all the chords with format name-suffix (joined by ';')
@@ -49,7 +49,9 @@ public class Song {
         name = "songs_progressions",
         joinColumns = @JoinColumn(
             name = "song_id",
-            referencedColumnName = "song_id"))
+            referencedColumnName = "song_id"
+        )
+    )
     @NonNull
     private List<String> progression = new ArrayList<>();
 

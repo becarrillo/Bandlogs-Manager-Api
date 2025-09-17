@@ -3,6 +3,8 @@ package com.api.bandlogs_manager.controllers;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,10 +22,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.api.bandlogs_manager.dtos.UserRoleDTO;
 
+import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.User;
+
 import com.api.bandlogs_manager.enums.UserRole;
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 import com.api.bandlogs_manager.security.JwtUtil;
+
+import com.api.bandlogs_manager.services.BandService;
 import com.api.bandlogs_manager.services.UserService;
 
 import io.jsonwebtoken.Claims;
@@ -38,10 +44,12 @@ import io.jsonwebtoken.Claims;
 @RequestMapping("/api/v1/usuarios")
 public class UserController {
     private final UserService userService;
+    private final BandService bandService;
     private final JwtUtil jwtUtil;
 
-    public UserController(UserService userService, JwtUtil jwtUtil) {
+    public UserController(UserService userService, BandService bandService, JwtUtil jwtUtil) {
         this.userService = userService;
+        this.bandService = bandService;
         this.jwtUtil = jwtUtil;
     }
 
@@ -127,9 +135,17 @@ public class UserController {
             if (foundUser.getUserId() == claims.get("id", Integer.class) 
                 && !foundUser.getRole().equals(UserRole.valueOf(claims.get("role", String.class)))
                 && user.getRole().equals(UserRole.ROLE_ADMIN))// when user tries to set his role to admin without authorization
-                    foundUser.setRole(UserRole.ROLE_USER);
+                    user.setRole(UserRole.ROLE_USER);
+            final String authUsername = this.jwtUtil.extractUsername(token);
+            Set<Band> bands = this.bandService.getBandsSetByLoggedInMemberUserNickname(authUsername);
+            bands = bands.stream()
+                    .filter(b -> b.getUsers().contains(foundUser))
+                    .collect(Collectors.toSet());
+
+            final User updatedUser = this.userService.updateUser(foundUser, user);
+            this.bandService.addMemberUserToManyBands(foundUser, updatedUser, bands);
             return new ResponseEntity<>(
-                    this.userService.updateUser(foundUser, user),
+                    updatedUser,
                     HttpStatus.OK
             );
         } catch (Exception e) {

@@ -6,11 +6,13 @@ package com.api.bandlogs_manager.enums;
  */
 public enum MusicalGenre {
     CLASSICAL,
+    COMERCIAL_BALLAD,
     COMERCIAL_JAZZ,
-    COMERCIAL_LATIN,
     COMERCIAL_ROCK,
     COMERCIAL_POP,
-    COMERCIAL_VALLENATO,
+    COMERCIAL_LATIN,
+    COMERCIAL_MEX,
+    COMERCIAL_CUMBIA_VALLENATO,
     FOLKLORIC,
     AFRO_MUSIC,
     EXPERIMENTAL,
