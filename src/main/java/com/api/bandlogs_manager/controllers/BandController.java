@@ -45,7 +45,7 @@ public class BandController {
         try {
             final Claims claims = this.jwtUtil.extractAllClaims(authHeader.replace("Bearer ", ""));
             final String loggedInUserNickname = claims.getSubject();
-            final UserRole userRole = UserRole.valueOf(claims.get("role", String.class));
+            final String stringUserRole = claims.get("role", String.class);
             final Band foundBand = this.bandService.getBandById(id);
             if (!(foundBand.getDirector().equals(loggedInUserNickname)  
                 || foundBand.getUsers()
@@ -53,7 +53,7 @@ public class BandController {
                     .filter(u -> u.getNickname().equals(loggedInUserNickname))
                     .findFirst()
                     .isPresent())
-                || userRole.equals(UserRole.ROLE_ADMIN)) {
+                && !stringUserRole.equals("ROLE_ADMIN")) {
                     // It handles the response when authenticated user is not member or director related with band
                     return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             }
