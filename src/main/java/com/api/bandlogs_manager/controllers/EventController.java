@@ -148,7 +148,7 @@ public class EventController {
         try {
             final String authUsername = this.jwtUtil.extractUsername(
                     authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-                final Event foundEvent = this.eventService.getEventById(id);
+                final Event foundEvent = this.eventService.getEventById(event.getEventId());
                 final Optional<Band> bandOpt = this.bandService
                         .getAllBandsSet()
                         .stream()
@@ -158,7 +158,7 @@ public class EventController {
                     throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
             this.eventService.deleteEvent(event);
             return new ResponseEntity<>(HttpStatus.OK);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new RuntimeException(e);
         }
     }
@@ -185,12 +185,7 @@ public class EventController {
                 final String authUsername = this.jwtUtil.extractUsername(
                     authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
                 final Event foundEvent = this.eventService.getEventById(id);
-                final Optional<Band> bandOpt = this.bandService
-                        .getAllBandsSet()
-                        .stream()
-                        .filter(b -> b.getEvents().contains(foundEvent))
-                        .findFirst();
-                if (bandOpt.isEmpty() || !b.getDirector().equals(authUsername))
+                if (!b.getDirector().equals(authUsername))
                     throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
                 final Event event = this.eventService.addSongToEvent(id, song);
                 return new ResponseEntity<>(event, HttpStatus.OK);

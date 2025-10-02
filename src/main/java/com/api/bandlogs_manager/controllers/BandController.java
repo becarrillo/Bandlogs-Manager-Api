@@ -1,5 +1,7 @@
 package com.api.bandlogs_manager.controllers;
 
+import com.api.bandlogs_manager.dtos.DirectorDTO;
+
 import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.User;
@@ -19,10 +21,13 @@ import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.client.HttpClientErrorException;
+
 import java.net.URLDecoder;
 
 import java.nio.charset.StandardCharsets;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -63,23 +68,26 @@ public class BandController {
         }
     }
 
-    @GetMapping(path = "/banda", params = {"nombre"})
-    public ResponseEntity<Band> 
-    getBandByName(@RequestHeader("Authorization") String authHeader,@RequestParam("nombre") String name) {
+    @GetMapping(params = {"nombre"})
+    public ResponseEntity<List<Band>> 
+    getBandByNameContaining(@RequestHeader("Authorization") String authHeader, @RequestParam("nombre") String containing) {
         try {
             final String authUsername = this.jwtUtil.extractUsername(
                 authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-            final Band foundBand = this.bandService.getBandByName(name);
-            if (!(foundBand.getDirector().equals(authUsername) 
-                || foundBand.getUsers()
-                    .stream()
-                    .filter(u -> u.getNickname().equals(authUsername))
-                    .findFirst()
-                    .isPresent())) {
-                        // It handles the response when authenticated user is not member or director related with band
-                        return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            final List<Band> foundBands = this.bandService.findByNameContaining(containing);
+            for (Band band : foundBands) {
+                if (!(band.getDirector().equals(authUsername) 
+                    || band.getUsers()
+                        .stream()
+                        .filter(u -> u.getNickname().equals(authUsername))
+                        .findFirst()
+                        .isPresent())) {
+                            // It handles the response when authenticated user is not member or director related with band
+                            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+                }
             }
-            return new ResponseEntity<>(foundBand, HttpStatus.OK);
+            
+            return new ResponseEntity<>(foundBands, HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -159,7 +167,9 @@ public class BandController {
             return new ResponseEntity<>(
                 patchedBand,
                 HttpStatus.OK);
-        } catch (Exception e) {
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
             throw new RuntimeException(e);
         }
     }
@@ -170,15 +180,21 @@ public class BandController {
         @PathVariable("bandId") short id,
         @RequestBody User user
     ) {
-        final String authUsername=this.jwtUtil.extractUsername(
-            authHeader.substring(7));// get me authenticated user nickname by JWT
-        final Band band = this.bandService.addMemberUserToBand(id, user, authUsername);
-        if (band==null) {
-            throw new RuntimeException(
-                    "Error al agregar miembro a la banda: " +
-                            "el usuario ya es miembro de la banda.");
+        try {
+            final String authUsername=this.jwtUtil.extractUsername(
+                authHeader.substring(7));// get me authenticated user nickname by JWT
+            final Band band = this.bandService.addMemberUserToBand(id, user, authUsername);
+            if (band==null) {
+                throw new RuntimeException(
+                        "Error al agregar miembro a la banda: " +
+                                "el usuario ya es miembro de la banda.");
+            }
+            return new ResponseEntity<>(band, HttpStatus.OK);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw new RuntimeException(e);
         }
-        return new ResponseEntity<>(band, HttpStatus.OK);
     }
 
     @DeleteMapping(path = "/eliminar")
@@ -202,7 +218,9 @@ public class BandController {
                     authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
                 updatedBand = this.bandService.updateBand(id, band, authUsername);
                 return new ResponseEntity<>(updatedBand, HttpStatus.OK);
-            } catch (ResourceNotFoundException e) {
+            } catch (HttpClientErrorException e) {
+                if (e.getStatusCode().value() == 403)
+                    return new ResponseEntity<>(HttpStatus.FORBIDDEN);
                 throw new RuntimeException(e);
             }
     }

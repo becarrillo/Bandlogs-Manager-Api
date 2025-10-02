@@ -2,7 +2,6 @@ package com.api.bandlogs_manager.controllers;
 
 import com.api.bandlogs_manager.dtos.TonalityDTO;
 
-import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.Song;
 
 import com.api.bandlogs_manager.services.SongService;
@@ -60,9 +59,9 @@ public class SongController {
         @RequestBody TonalityDTO dto) {
             Song foundSongById = null;
             try {
-                final Song transportedSong = this.songService.transportSong(foundSongById, dto);
+                foundSongById = this.songService.getSongById(id);
                 return new ResponseEntity<>(
-                        this.songService.updateSong(id, transportedSong),
+                        this.songService.transportSong(foundSongById, dto),
                         HttpStatus.OK);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -72,7 +71,7 @@ public class SongController {
     @PutMapping(path = "/{songId}/modificar")
     public ResponseEntity<Song> updateSong(@PathVariable("songId") int id, @RequestBody Song song) {
         try {    
-            final Song updatedSong = this.songService.updateSong(id, song);
+            final Song newSong = this.songService.updateSong(id, song);
             return new ResponseEntity<>(
                 updatedSong,
                 HttpStatus.OK

@@ -7,24 +7,24 @@ import com.api.bandlogs_manager.entities.User;
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 
 import com.api.bandlogs_manager.repository.BandRepository;
+import com.api.bandlogs_manager.repository.UserRepository; // Import UserRepository
+
+import jakarta.transaction.Transactional;
 
 import org.springframework.data.repository.query.Param;
-
 import org.springframework.http.HttpStatusCode;
-
-import org.springframework.web.client.HttpClientErrorException;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.lang.IllegalArgumentException;
-
-import java.util.stream.Collectors;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Project: bandlogs-manager
@@ -33,9 +33,11 @@ import java.util.Set;
 @Service
 public class BandService {
     private final BandRepository bandRepository;
+    private final UserRepository userRepository; // Inject UserRepository
 
-    public BandService(BandRepository bandRepository) {
+    public BandService(BandRepository bandRepository, UserRepository userRepository) {
         this.bandRepository = bandRepository;
+        this.userRepository = userRepository;
     }
 
     public Band getBandById(Short id) {
@@ -43,10 +45,10 @@ public class BandService {
         return bandOpt.orElseThrow(ResourceNotFoundException::new);
     }
 
-    public Band getBandByName(String name) {
-        final Optional<Band> bandOpt = Optional.of(this.bandRepository.findByName(name));
-        return bandOpt.orElseThrow(() -> new ResourceNotFoundException(
-                "No existe banda alguna con el nombre de " + name));
+    public List<Band> findByNameContaining(String name) {
+        final Optional<List<Band>> bandsOpt = Optional.ofNullable(this.bandRepository.findByNameContaining(name));
+        return bandsOpt.orElseThrow(() -> new ResourceNotFoundException(
+                "No existe banda alguna con el nombre que contiene: " + name));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -118,26 +120,39 @@ public class BandService {
 
     /**
      * @param bandId               unique id number of band to update
-     * @param band                 entity to update
+     * @param bandDetails          Band entity to update
      * @param loggedInUserNickname user who is authenticated and who makes the
      *                             request
-     */
-    public Band updateBand(Short bandId, Band band, String loggedInUserNickname) {
-        final Band foundBand = getBandById(bandId);
-        // ensure the band to be updated has as director property the authenticated user
-        // nickname value
-        if (!loggedInUserNickname.equals(foundBand.getDirector()))
-            throw new HttpClientErrorException(HttpStatusCode.valueOf(401));
-        if (foundBand.getBandId() != band.getBandId()) {
-            throw new IllegalArgumentException(
-                    "Conflicto entre el argumento id de banda y la propiedad id de banda, no coinciden");
+    */ 
+    @Transactional // Add transactional annotation
+    public Band updateBand(Short bandId, Band bandDetails, String loggedInUserNickname) {
+        Band band = bandRepository.findById(bandId)
+                .orElseThrow(() -> new ResourceNotFoundException("Band not found with id: " + bandId));
+        if (!loggedInUserNickname.equals(band.getDirector()))
+            throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
+        // Update simple attributes
+        band.setName(bandDetails.getName());
+        band.setMusicalGenre(bandDetails.getMusicalGenre());
+        band.setDirector(bandDetails.getDirector());
+        
+        if (bandDetails.getUsers() != null) {   // Handle user associations
+            for (User newUser : bandDetails.getUsers()) {
+                // Check if the user already exists in the band
+                boolean alreadyAssociated = band.getUsers().stream()
+                        .anyMatch(user -> user.getUserId()==newUser.getUserId()); // Assuming User has a getId() method
+
+                if (!alreadyAssociated) {
+                    //Fetch the user from the database to avoid detached entity issues
+                    User managedUser = userRepository
+                        .findById(newUser.getUserId())
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + newUser.getUserId()));
+                    band.getUsers().add(managedUser);
+                }
+            }
         }
-        foundBand.setName(band.getName());
-        foundBand.setMusicalGenre(band.getMusicalGenre());
-        foundBand.setDirector(band.getDirector());
-        foundBand.setUsers(band.getUsers());
-        foundBand.setEvents(foundBand.getEvents());
-        return this.bandRepository.save(band);
+
+        // Save the updated band
+        return bandRepository.saveAndFlush(band);
     }
 
     /**
@@ -150,7 +165,7 @@ public class BandService {
     public Band addEventToBand(short bandId, Event event, String loggedInUserNickname) {
         final Band foundBand = getBandById(bandId);
         if (!foundBand.getDirector().equals(loggedInUserNickname))
-            throw new HttpClientErrorException(HttpStatusCode.valueOf(401));
+            throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
         if (foundBand
                 .getEvents()
                 .stream()
@@ -171,7 +186,7 @@ public class BandService {
     public Band addMemberUserToBand(short bandId, User user, String authUsername) {
         final Band foundBand = getBandById(bandId);
         if (!authUsername.equals(foundBand.getDirector()))
-            throw new HttpClientErrorException(HttpStatusCode.valueOf(401));
+            throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
         final List<User> bandUsers = foundBand.getUsers();
         if (foundBand
                 .getUsers()
