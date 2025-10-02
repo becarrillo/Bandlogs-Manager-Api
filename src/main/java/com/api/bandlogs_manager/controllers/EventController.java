@@ -36,8 +36,6 @@ import com.api.bandlogs_manager.services.BandService;
 import com.api.bandlogs_manager.services.EventService;
 import com.api.bandlogs_manager.services.SongService;
 
-
-
 import io.jsonwebtoken.Claims;
 
 import java.util.Optional;

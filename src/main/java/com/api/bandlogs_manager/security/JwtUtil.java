@@ -3,7 +3,6 @@ package com.api.bandlogs_manager.security;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import javax.crypto.SecretKey;
 

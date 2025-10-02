@@ -134,7 +134,9 @@ public class BandService {
         band.setName(bandDetails.getName());
         band.setMusicalGenre(bandDetails.getMusicalGenre());
         band.setDirector(bandDetails.getDirector());
-        
+
+        if (bandDetails.getUsers().size()==band.getUsers().size()-1)
+            return bandRepository.saveAndFlush(bandDetails); // For the operation to cancel a band member
         if (bandDetails.getUsers() != null) {   // Handle user associations
             for (User newUser : bandDetails.getUsers()) {
                 // Check if the user already exists in the band
@@ -151,7 +153,7 @@ public class BandService {
             }
         }
 
-        // Save the updated band
+        // Save and flush updated band changes
         return bandRepository.saveAndFlush(band);
     }
 
