@@ -6,8 +6,8 @@ spring:
     name: bandlogs-manager
   datasource:
     url: jdbc:oracle:thin:@//localhost:1521/FREEPDB1
-    username: SYSTEM
-    password: 2627036B-asdF
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driverClassName: oracle.jdbc.OracleDriver
   jpa:
     hibernate:
@@ -18,7 +18,10 @@ spring:
     show-sql: true
 
 jwt:
-  secret: MY_0WN_CU5T0M_B4NDL065_S3CR3T_BY_Br4Nd0_4PP5
+  secret: ${JWT_SECRET}
+
+rapidapi:
+  key: ${RAPIDAPI_KEY}
 
 logging:
   level:

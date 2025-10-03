@@ -98,10 +98,12 @@ public class UserController {
 
     @PostMapping(path = "/registro")
     public ResponseEntity<User> registerUser(@RequestBody User user) {
-        final User savedUser = this.userService.registerUser(user);
-        if (Objects.isNull(savedUser))
-            return new ResponseEntity<>(HttpStatus.CONFLICT);
         try {
+            final User savedUser = this.userService.registerUser(user);
+            if (Objects.isNull(savedUser))
+                return new ResponseEntity<>(HttpStatus.CONFLICT);
+            // Send WhatsApp message
+            this.userService.sendWhatsAppMessage(savedUser.getPhoneNumber(), savedUser.getFirstname());
             return new ResponseEntity<>(
                     savedUser,
                     HttpStatus.CREATED);
