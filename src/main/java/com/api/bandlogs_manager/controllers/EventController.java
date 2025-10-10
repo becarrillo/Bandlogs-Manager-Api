@@ -9,7 +9,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -26,9 +25,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.client.HttpClientErrorException;
+
 import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.Song;
+
+import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 
 import com.api.bandlogs_manager.security.JwtUtil;
 
@@ -70,8 +73,12 @@ public class EventController {
             return new ResponseEntity<>(
                 foundEvent,
                 HttpStatus.OK);
-        } catch (Exception e) {
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
             throw new RuntimeException(e);
+        } catch (ResourceNotFoundException e) {
+            throw e;
         }
     }
 
@@ -88,6 +95,10 @@ public class EventController {
             return new ResponseEntity<>(
                     events,
                     HttpStatus.OK);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -117,46 +128,33 @@ public class EventController {
             return new ResponseEntity<>(
                 events,
                 HttpStatus.OK);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw new RuntimeException(e);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    @PostMapping(path = "/agregar")
-    public ResponseEntity<Event> addEvent(@RequestBody Event event) {
-        final Set<Song> repertoire = new HashSet<>();
-        try {
-            for (Song song : event.getRepertoire()) {
-                if (song.getSongId()>=1) // if song has id value then search it and add it to event
-                    repertoire.add(this.songService.getSongById(song.getSongId()));
-                else       // if song has not id value or null save it and add to event
-                    repertoire.add(this.songService.saveSong(song));
-            }
-            event.setRepertoire(repertoire);
-            return new ResponseEntity<>(
-                    this.eventService.saveEvent(event),
-                    HttpStatus.CREATED);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @DeleteMapping(path = "/eliminar")
-    public ResponseEntity<Void> deleteEvent(@RequestHeader("Authorization") String authHeader,@RequestBody Event event) {
+    @DeleteMapping(path = "/{eventId}/eliminar")
+    public ResponseEntity<Void> 
+    deleteEvent(@RequestHeader("Authorization") String authHeader,@PathVariable("eventId") String id) {
         try {
             final String authUsername = this.jwtUtil.extractUsername(
                     authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
                 final Event foundEvent = this.eventService.getEventById(event.getEventId());
                 final Optional<Band> bandOpt = this.bandService
-                        .getAllBandsSet()
+                        .getBandsSetByDirectorAndLoggedInUserNicknames(authUsername, authUsername)
                         .stream()
                         .filter(b -> b.getEvents().contains(foundEvent))
                         .findFirst();
+                // Ensure only to band director wich the related event to delete it
                 if (bandOpt.isEmpty() || !b.getDirector().equals(authUsername))
                     throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
-            this.eventService.deleteEvent(event);
+            this.eventService.deleteEventById(id);
             return new ResponseEntity<>(HttpStatus.OK);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -169,6 +167,10 @@ public class EventController {
                 return new ResponseEntity<>(
                     this.eventService.updateEventById(id, event),
                     HttpStatus.OK);
+            } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+                throw new RuntimeException(e);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -187,6 +189,10 @@ public class EventController {
                     throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
                 final Event event = this.eventService.addSongToEvent(id, song);
                 return new ResponseEntity<>(event, HttpStatus.OK);
+            }  catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw new RuntimeException(e);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

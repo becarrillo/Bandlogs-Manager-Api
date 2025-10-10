@@ -3,7 +3,7 @@ package com.api.bandlogs_manager.controllers;
 import com.api.bandlogs_manager.dtos.TonalityDTO;
 
 import com.api.bandlogs_manager.entities.Song;
-
+import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 import com.api.bandlogs_manager.services.SongService;
 
 import java.util.List;
@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.HttpClientErrorException;
 
 @RestController
 @RequestMapping("/api/v1/repertorio")
@@ -48,8 +49,12 @@ public class SongController {
         try {
             final Song foundSongById = this.songService.getSongById(id);
             return new ResponseEntity<>(foundSongById, HttpStatus.OK);
-        } catch (Exception e) {
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
             throw new RuntimeException(e);
+        } catch (ResourceNotFoundException e) {
+            throw e;
         }
     }
 
@@ -66,28 +71,5 @@ public class SongController {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
-    }
-
-    @PutMapping(path = "/{songId}/modificar")
-    public ResponseEntity<Song> updateSong(@PathVariable("songId") int id, @RequestBody Song song) {
-        try {    
-            final Song newSong = this.songService.updateSong(id, song);
-            return new ResponseEntity<>(
-                updatedSong,
-                HttpStatus.OK
-            );
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @DeleteMapping(path = "/eliminar")
-    public ResponseEntity<Void> deleteSong(@RequestBody Song song) {
-        try {
-            this.songService.deleteSong(song); // delete song if logged-in user is director at least one band of its event
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return new ResponseEntity<>(HttpStatus.OK);
     }
 }

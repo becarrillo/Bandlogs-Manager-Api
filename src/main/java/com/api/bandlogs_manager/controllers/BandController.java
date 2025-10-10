@@ -1,14 +1,12 @@
 package com.api.bandlogs_manager.controllers;
 
-import com.api.bandlogs_manager.dtos.DirectorDTO;
-
 import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
 import com.api.bandlogs_manager.entities.User;
 
-import com.api.bandlogs_manager.enums.UserRole;
-
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
+
+import com.api.bandlogs_manager.external.services.WhatsAppNotificationMessagingService;
 
 import com.api.bandlogs_manager.security.JwtUtil;
 
@@ -27,8 +25,13 @@ import java.net.URLDecoder;
 
 import java.nio.charset.StandardCharsets;
 
+import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 import java.util.List;
 import java.util.Set;
+
 
 /**
  * Project: bandlogs-manager
@@ -39,54 +42,64 @@ import java.util.Set;
 public class BandController {
     private final BandService bandService;
     private final JwtUtil jwtUtil;
+    private final WhatsAppNotificationMessagingService whatsAppNotificationMessagingService;
 
-    public BandController(BandService bandService, JwtUtil jwtUtil) {
+    public BandController(BandService bandService, JwtUtil jwtUtil,
+            WhatsAppNotificationMessagingService whatsAppNotificationMessagingService) {
         this.bandService = bandService;
         this.jwtUtil = jwtUtil;
+        this.whatsAppNotificationMessagingService = whatsAppNotificationMessagingService;
     }
 
     @GetMapping("/{bandId}")
-    public ResponseEntity<Band> getBandById(@RequestHeader("Authorization") String authHeader, @PathVariable("bandId") Short id) {
+    public ResponseEntity<Band> getBandById(@RequestHeader("Authorization") String authHeader,
+            @PathVariable("bandId") Short id) {
         try {
             final Claims claims = this.jwtUtil.extractAllClaims(authHeader.replace("Bearer ", ""));
             final String loggedInUserNickname = claims.getSubject();
             final String stringUserRole = claims.get("role", String.class);
             final Band foundBand = this.bandService.getBandById(id);
-            if (!(foundBand.getDirector().equals(loggedInUserNickname)  
-                || foundBand.getUsers()
-                    .stream()
-                    .filter(u -> u.getNickname().equals(loggedInUserNickname))
-                    .findFirst()
-                    .isPresent())
-                && !stringUserRole.equals("ROLE_ADMIN")) {
-                    // It handles the response when authenticated user is not member or director related with band
-                    return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+            if (!(foundBand.getDirector().equals(loggedInUserNickname)
+                    || foundBand.getUsers()
+                            .stream()
+                            .filter(u -> u.getNickname().equals(loggedInUserNickname))
+                            .findFirst()
+                            .isPresent())
+                    && !stringUserRole.equals("ROLE_ADMIN")) {
+                // It handles the response when authenticated user is not member or director
+                // related with band
+                return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             }
             return new ResponseEntity<>(foundBand, HttpStatus.OK);
-        } catch (Exception e) {
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
             throw new RuntimeException(e);
+        } catch (ResourceNotFoundException e) {
+            throw e;
         }
     }
 
-    @GetMapping(params = {"nombre"})
-    public ResponseEntity<List<Band>> 
-    getBandByNameContaining(@RequestHeader("Authorization") String authHeader, @RequestParam("nombre") String containing) {
+    @GetMapping(params = { "nombre" })
+    public ResponseEntity<List<Band>> listBandsByNameContaining(@RequestHeader("Authorization") String authHeader,
+            @RequestParam("nombre") String containing) {
         try {
             final String authUsername = this.jwtUtil.extractUsername(
-                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-            final List<Band> foundBands = this.bandService.findByNameContaining(containing);
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+            final List<Band> foundBands = this.bandService.listBandsByNameContaining(containing);
             for (Band band : foundBands) {
-                if (!(band.getDirector().equals(authUsername) 
-                    || band.getUsers()
-                        .stream()
-                        .filter(u -> u.getNickname().equals(authUsername))
-                        .findFirst()
-                        .isPresent())) {
-                            // It handles the response when authenticated user is not member or director related with band
-                            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+                if (!(band.getDirector().equals(authUsername)
+                        || band.getUsers()
+                                .stream()
+                                .filter(u -> u.getNickname().equals(authUsername))
+                                .findFirst()
+                                .isPresent())) {
+                    // It handles the response when authenticated user is not member or director
+                    // related with band
+                    return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
                 }
             }
-            
+
             return new ResponseEntity<>(foundBands, HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -99,23 +112,28 @@ public class BandController {
             return new ResponseEntity<>(
                     this.bandService.getAllBandsSet(),
                     HttpStatus.OK);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw e;
         }
     }
 
-    @GetMapping(path = "/por-director", params = {"nombre-de-usuario"})
+    @GetMapping(path = "/por-director", params = { "nombre-de-usuario" })
     public ResponseEntity<Set<Band>> listBandsByDirector(
-        @RequestHeader("Authorization") String authHeader,
-        @RequestParam("nombre-de-usuario") String nickname
-    ) {
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("nombre-de-usuario") String nickname) {
         try {
             final String loggedInUserNickname = this.jwtUtil.extractUsername(
-                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
             final Set<Band> bands = this.bandService.getBandsSetByDirectorAndLoggedInUserNicknames(
-                URLDecoder.decode(nickname, StandardCharsets.UTF_8),
-                loggedInUserNickname);
+                    URLDecoder.decode(nickname, StandardCharsets.UTF_8),
+                    loggedInUserNickname);
             return new ResponseEntity<>(bands, HttpStatus.OK);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -123,18 +141,17 @@ public class BandController {
 
     @GetMapping(path = "/por-miembro", params = "nombre-de-usuario")
     public ResponseEntity<Set<Band>> listBandsByMemberUserNickname(
-        @RequestHeader("Authorization") String authHeader,
-        @RequestParam("nombre-de-usuario") String nickname
-    ) {
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("nombre-de-usuario") String nickname) {
         try {
             final String loggedInUserNickname = this.jwtUtil.extractUsername(
-                authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
+                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
             if (!nickname.equals(loggedInUserNickname))
                 return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             final Set<Band> bands = this.bandService.getBandsSetByLoggedInMemberUserNickname(loggedInUserNickname);
             return new ResponseEntity<>(
-                bands,
-                HttpStatus.OK);
+                    bands,
+                    HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -142,57 +159,75 @@ public class BandController {
 
     @PostMapping(path = "/agregar")
     public ResponseEntity<Band> addBand(
-        @RequestHeader("Authorization") String authHeader, @RequestBody Band band) {
-            try {
-                final String loggedInUserNickname = this.jwtUtil.extractUsername(
+            @RequestHeader("Authorization") String authHeader, @RequestBody Band band) {
+        try {
+            final String loggedInUserNickname = this.jwtUtil.extractUsername(
                     authHeader.replace("Bearer ", ""));// authenticated user nickname by JWT
-                return new ResponseEntity<>(
-                        this.bandService.saveBand(band, loggedInUserNickname),
-                        HttpStatus.CREATED);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            return new ResponseEntity<>(
+                    this.bandService.saveBand(band, loggedInUserNickname),
+                    HttpStatus.CREATED);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @PatchMapping(path = "/{bandId}/eventos/agregar")
     public ResponseEntity<Band> patchEventToBand(
-        @RequestHeader("Authorization") String authHeader,
-        @PathVariable("bandId") short id,
-        @RequestBody Event event
-    ) {
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable("bandId") short id,
+            @RequestBody Event event) {
         try {
             final String loggedInUserNickname = this.jwtUtil.extractUsername(
-                authHeader.substring(7));   // get me authenticated user nickname by JWT
-            final Band patchedBand = this.bandService.addEventToBand(id, event, loggedInUserNickname);
+                    authHeader.substring(7)); // get me authenticated user nickname by JWT
+            if (event.getDate().compareTo(LocalDate.now(ZoneId.of("America/Bogota")))<0)
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            final Band band = this.bandService.patchEventToBand(id, event, loggedInUserNickname);
+            final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy"); // Custom date format
+            final List<User> members = band.getUsers();
+            for (int i = 0; i < members.size(); i++) {
+                String message = members.get(i).getFirstname(); // Generate the WhatsApp notification message message body as string
+                message += ",  tienes un evento 🗓 nuevo: \""+event.getDescription().concat("\",");
+                message += " en Bandlogs Manager 📲, con "+band.getName()+", para el: ".concat(event.getDate().format(formatter) + ". ");
+                message += event.getLocation() != null ?  "Lugar: \"".concat(event.getLocation()+"\".") : " no especificado.";
+                message += " Brando Carrillo ~ Bandlogs Manager (en español).";
+
+                this.whatsAppNotificationMessagingService.sendMessageAsString(members.get(i).getPhoneNumber().replace("+", ""), message);
+            }
             return new ResponseEntity<>(
-                patchedBand,
-                HttpStatus.OK);
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 403)
-                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+                    band,
+                    HttpStatus.OK);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @PatchMapping(path = "/{bandId}/usuarios/agregar")
     public ResponseEntity<Band> patchMemberUserToBand(
-        @RequestHeader("Authorization") String authHeader,
-        @PathVariable("bandId") short id,
-        @RequestBody User user
-    ) {
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable("bandId") short id,
+            @RequestBody User user) {
         try {
-            final String authUsername=this.jwtUtil.extractUsername(
-                authHeader.substring(7));// get me authenticated user nickname by JWT
+            final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.substring(7));// get me authenticated user nickname by JWT
             final Band band = this.bandService.addMemberUserToBand(id, user, authUsername);
-            if (band==null) {
+            if (band == null) {
                 throw new RuntimeException(
                         "Error al agregar miembro a la banda: " +
                                 "el usuario ya es miembro de la banda.");
             }
+            // Generate the WhatsApp notification message message body as string
+            /*String message = "Notificación 📲: Hola ".concat(user.getFirstname());
+            message += ", has sido agregado al espacio virtual 💻🎼 de la banda \"";
+            message += band.getName();
+            message += "\", en Bandlogs Manager en español. Puedes comenzar a visualizar la misma, quienes son miembros y su calendario de eventos.";
+            message += " Att: Brando Carrillo. (Mensaje autogenerado)";
+            this.whatsAppNotificationMessagingService.sendMessageAsString(user.getPhoneNumber(), message);*/
             return new ResponseEntity<>(band, HttpStatus.OK);
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 403)
                 return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw new RuntimeException(e);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -202,6 +237,10 @@ public class BandController {
         try {
             this.bandService.deleteBand(band);
             return new ResponseEntity<>(HttpStatus.OK);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw new RuntimeException(e);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -209,19 +248,44 @@ public class BandController {
 
     @PutMapping(path = "/{bandId}/modificar")
     public ResponseEntity<Band> updateBandById(
-        @RequestHeader("Authorization") String authHeader,
-        @PathVariable("bandId") short id,
-        @RequestBody Band band) {
-            Band updatedBand = null;
-            try {
-                final String authUsername = this.jwtUtil.extractUsername(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable("bandId") short id,
+            @RequestBody Band band) {
+        Band updatedBand = null;
+        try {
+            final String authUsername = this.jwtUtil.extractUsername(
                     authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-                updatedBand = this.bandService.updateBand(id, band, authUsername);
-                return new ResponseEntity<>(updatedBand, HttpStatus.OK);
-            } catch (HttpClientErrorException e) {
-                if (e.getStatusCode().value() == 403)
-                    return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-                throw new RuntimeException(e);
-            }
+            updatedBand = this.bandService.updateBand(id, band, authUsername);
+            return new ResponseEntity<>(updatedBand, HttpStatus.OK);
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == 403)
+                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @PutMapping(path = "/{bandId}/eventos/cancelar")
+    public ResponseEntity<Band> 
+    cancelEventInBand(@RequestHeader("Authorization") String authHeader, @PathVariable("bandId") short id, @RequestBody Event event) {
+        try {
+            final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.substring(7));// get me authenticated user nickname by JWT
+            return new ResponseEntity<>(this.bandService.removeEventInBand(id, event, authUsername), HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @PutMapping(path = "/{bandId}/eventos")
+    public ResponseEntity<Band> modifyEventInBand (@RequestHeader("Authorization") String authHeader, @PathVariable("bandId") short id, @RequestBody Event event) {
+        try {
+            final String authUsername = this.jwtUtil.extractUsername(
+                    authHeader.substring(7));// get me authenticated user nickname by JWT
+            return new ResponseEntity<>(this.bandService.updateEventInBand(id, event, authUsername), HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

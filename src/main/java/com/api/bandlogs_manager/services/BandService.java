@@ -2,12 +2,14 @@ package com.api.bandlogs_manager.services;
 
 import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
+import com.api.bandlogs_manager.entities.Song;
 import com.api.bandlogs_manager.entities.User;
 
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 
 import com.api.bandlogs_manager.repository.BandRepository;
 import com.api.bandlogs_manager.repository.UserRepository; // Import UserRepository
+import com.api.bandlogs_manager.repository.SongRepository;
 
 import jakarta.transaction.Transactional;
 
@@ -19,7 +21,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
-import java.lang.IllegalArgumentException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -34,10 +35,12 @@ import java.util.stream.Collectors;
 public class BandService {
     private final BandRepository bandRepository;
     private final UserRepository userRepository; // Inject UserRepository
+    private final SongRepository songRepository;
 
-    public BandService(BandRepository bandRepository, UserRepository userRepository) {
+    public BandService(BandRepository bandRepository, UserRepository userRepository, SongRepository songRepository) {
         this.bandRepository = bandRepository;
         this.userRepository = userRepository;
+        this.songRepository = songRepository;
     }
 
     public Band getBandById(Short id) {
@@ -45,15 +48,15 @@ public class BandService {
         return bandOpt.orElseThrow(ResourceNotFoundException::new);
     }
 
-    public List<Band> findByNameContaining(String name) {
-        final Optional<List<Band>> bandsOpt = Optional.ofNullable(this.bandRepository.findByNameContaining(name));
+    public List<Band> listBandsByNameContaining(String containing) {
+        final Optional<List<Band>> bandsOpt = Optional.ofNullable(this.bandRepository.findByNameContaining(containing));
         return bandsOpt.orElseThrow(() -> new ResourceNotFoundException(
-                "No existe banda alguna con el nombre que contiene: " + name));
+                "No existe banda alguna con el nombre que contiene: " + containing));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     public Set<Band> getAllBandsSet() {
-        final Set<Band> bandsSet = new HashSet<Band>();
+        final Set<Band> bandsSet = new HashSet<>();
         bandsSet.addAll(this.bandRepository.findAll());// converts List to Set and returns it
         return bandsSet;
     }
@@ -106,6 +109,7 @@ public class BandService {
      * authorized for platform registered users.
      * 
      * @param band Band to be saved
+     * @param director nickname of user registering the new band (default he/she will be a director)
      * @return Band saved
      */
     public Band saveBand(Band band, String director) {
@@ -135,7 +139,7 @@ public class BandService {
         band.setMusicalGenre(bandDetails.getMusicalGenre());
         band.setDirector(bandDetails.getDirector());
 
-        if (bandDetails.getUsers().size()==band.getUsers().size()-1)
+        if (bandDetails.getUsers()!=null && bandDetails.getUsers().size()==band.getUsers().size()-1)
             return bandRepository.saveAndFlush(bandDetails); // For the operation to cancel a band member
         if (bandDetails.getUsers() != null) {   // Handle user associations
             for (User newUser : bandDetails.getUsers()) {
@@ -158,23 +162,24 @@ public class BandService {
     }
 
     /**
+     * Add or update band inner event
      * @param bandId               unique id number of band wich is related with the
      *                             event to add
      * @param event                entity to add to band
      * @param loggedInUserNickname user who is authenticated and who makes the
      *                             request
      */
-    public Band addEventToBand(short bandId, Event event, String loggedInUserNickname) {
+    public Band patchEventToBand(short bandId, Event event, String loggedInUserNickname) {
         final Band foundBand = getBandById(bandId);
         if (!foundBand.getDirector().equals(loggedInUserNickname))
             throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
-        if (foundBand
-                .getEvents()
-                .stream()
-                .anyMatch(e -> e.getEventId().equals(event.getEventId()))) {// check if event already exists
-            throw new IllegalArgumentException("Ya existe el evento");
-        }
-        List<Event> events = foundBand.getEvents();
+        final List<Event> events = foundBand.getEvents();
+        final Set<Song> repertoire = new HashSet<>();
+        event.getRepertoire()
+                        .forEach(s -> {
+                            repertoire.add(songRepository.save(s));
+                        });
+        event.setRepertoire(repertoire);
         events.add(event);
         foundBand.setEvents(events);
         return this.bandRepository.save(foundBand);
@@ -196,7 +201,7 @@ public class BandService {
                 .noneMatch(u -> u.getUserId() == user.getUserId())) {// check the user is not a member of the band
             bandUsers.add(user);
             foundBand.setUsers(bandUsers);
-            return this.bandRepository.save(foundBand);
+            return this.bandRepository.saveAndFlush(foundBand);
         }
         return null;
     }
@@ -216,5 +221,50 @@ public class BandService {
                 this.bandRepository.saveAndFlush(band);
             }
         }
+    }
+
+    /**
+     * @param bandId               unique id number of band wich is related with the
+     *                             event to add
+     * @param event                entity to add to band
+     * @param loggedInUserNickname user who is authenticated and who makes the
+     *                             request
+     */
+    public Band removeEventInBand(short bandId, Event event, String loggedInUserNickname) {
+        final Band foundBand = getBandById(bandId);
+        if (!foundBand.getDirector().equals(loggedInUserNickname))
+            throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
+        List<Event> events = foundBand.getEvents();
+        events = events.stream()
+                        .filter(e -> !e.getEventId().equals(event.getEventId()))
+                        .collect(Collectors.toList());
+        foundBand.setEvents(events);
+        return this.bandRepository.saveAndFlush(foundBand);
+    }
+
+    /**
+     * @param bandId               unique id number of band wich is related with the
+     *                             event to add
+     * @param event                entity to add to band
+     * @param loggedInUserNickname user who is authenticated and who makes the
+     *                             request
+     */
+    public Band updateEventInBand(short bandId, Event event, String loggedInUserNickname) {
+        final Band foundBand = getBandById(bandId);
+        if (!foundBand.getDirector().equals(loggedInUserNickname))
+            throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
+        event.getRepertoire().forEach(s -> {
+            songRepository.saveAndFlush(s);
+        });
+        List<Event> events = foundBand.getEvents();
+        events = events.stream()
+                        .map(e -> {
+                            if (e.getEventId().equals(event.getEventId()))
+                                return event;
+                            return e;
+                        })
+                        .collect(Collectors.toList());
+        foundBand.setEvents(events);
+        return this.bandRepository.saveAndFlush(foundBand);
     }
 }

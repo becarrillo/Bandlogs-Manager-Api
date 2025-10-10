@@ -1,8 +1,6 @@
 package com.api.bandlogs_manager.controllers;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,6 +25,7 @@ import com.api.bandlogs_manager.entities.User;
 
 import com.api.bandlogs_manager.enums.UserRole;
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
+import com.api.bandlogs_manager.external.services.WhatsAppNotificationMessagingService;
 import com.api.bandlogs_manager.security.JwtUtil;
 
 import com.api.bandlogs_manager.services.BandService;
@@ -46,17 +45,27 @@ public class UserController {
     private final UserService userService;
     private final BandService bandService;
     private final JwtUtil jwtUtil;
+    private final WhatsAppNotificationMessagingService whatsAppNotificationMessagingService;
 
-    public UserController(UserService userService, BandService bandService, JwtUtil jwtUtil) {
+    public UserController(UserService userService,
+                        BandService bandService,
+                        JwtUtil jwtUtil,
+                        WhatsAppNotificationMessagingService whatsAppNotificationMessagingService) {
         this.userService = userService;
         this.bandService = bandService;
         this.jwtUtil = jwtUtil;
+        this.whatsAppNotificationMessagingService = whatsAppNotificationMessagingService;
     }
 
     @GetMapping(path = "/{userId}")
     public ResponseEntity<User> getUserById(@PathVariable("userId") int id) {
-        final User foundUser = this.userService.getUserById(id);
-        return new ResponseEntity<>(foundUser, HttpStatus.OK);
+        try {
+            final User foundUser = this.userService.getUserById(id);
+            return new ResponseEntity<>(foundUser, HttpStatus.OK);
+        } catch (ResourceNotFoundException e) {
+            throw e;
+        }
+        
     }
 
     @GetMapping(path = "/usuario", params = {"nombre-de-usuario"})
@@ -89,8 +98,17 @@ public class UserController {
     public ResponseEntity<List<User>> listAllUsers() {
         try {
             return new ResponseEntity<>(
-                    this.userService.getAllUsers(),
+                    this.userService.listAllUsers(),
                     HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @GetMapping(params = {"nombre-de-usuario"})
+    public ResponseEntity<List<User>> lisUsersByNicknameContaining(@RequestParam("nombre-de-usuario") String containing) {
+        try {
+            return new ResponseEntity<>(this.userService.listUsersByNicknameContaining(containing), HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -98,12 +116,21 @@ public class UserController {
 
     @PostMapping(path = "/registro")
     public ResponseEntity<User> registerUser(@RequestBody User user) {
-        try {
+        try {// Register user and assign result to a variable
             final User savedUser = this.userService.registerUser(user);
-            if (Objects.isNull(savedUser))
+            /*if (Objects.isNull(savedUser))
                 return new ResponseEntity<>(HttpStatus.CONFLICT);
-            // Send WhatsApp message
-            this.userService.sendWhatsAppMessage(savedUser.getPhoneNumber(), savedUser.getFirstname());
+            String message = "Hola, ";   // Generate the WhatsApp notification message message body
+            message +=  savedUser.getFirstname();
+            message +=  " 👋, soy Brando Carrillo, te doy la bienvenida a mi web app Bandlogs Manager en español! 📯📲💻  ";
+            message += "Tu registro fue exitoso... ✔🎉 y espero, la plataforma te ayude a gestionar tus grupos, eventos musicales y su repertorio ";
+            message += "🎼 de una manera intuitiva.  Ingresa y aprovecha todo su potencial.  Para solicitudes, soporte técnico o dudas por este medio.";
+            message += " (Mensaje autogenerado) ";
+            
+            this.whatsAppNotificationMessagingService.sendMessageAsString(
+                savedUser.getPhoneNumber().replace("+", ""),// WhatsApp number string, must not have '+' for send msg through external API 
+                message
+            );*/
             return new ResponseEntity<>(
                     savedUser,
                     HttpStatus.CREATED);
@@ -112,14 +139,14 @@ public class UserController {
         }
     }
 
-    @DeleteMapping(path = "/eliminar")
-    public ResponseEntity<Void> deleteUser(@RequestBody User user) {
+    @DeleteMapping(path = "/{userId}/eliminar")
+    public ResponseEntity<Void> deleteUser(@PathVariable("userId") int id) {
         try {
-            this.userService.deleteUser(user);
-            return new ResponseEntity<>(HttpStatus.OK);
+            this.userService.deleteUserById(id);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PutMapping(path = "/{userId}/modificar")
@@ -132,7 +159,7 @@ public class UserController {
             final String token = authHeader.replace("Bearer ", "");
             final Claims claims = this.jwtUtil.extractAllClaims(token);
             final User foundUser = this.userService.getUserById(id);
-            if (Optional.of(foundUser).isPresent() && foundUser.getUserId() != user.getUserId())
+            if (foundUser.getUserId() != user.getUserId())
                 return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
             if (foundUser.getUserId() == claims.get("id", Integer.class) 
                 && !foundUser.getRole().equals(UserRole.valueOf(claims.get("role", String.class)))

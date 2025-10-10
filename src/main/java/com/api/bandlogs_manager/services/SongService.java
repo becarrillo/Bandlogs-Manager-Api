@@ -102,15 +102,9 @@ public class SongService {
             song.setTonalitySuffix(" ");// because Oracle DB persists empty string as null
         return this.songRepository.save(song);
     }
-
-    public Song updateSong(int id, Song song) {
-        if (song.getSongId()!=id)
-            throw new IllegalArgumentException();
-        return this.songRepository.saveAndFlush(song);
-    }
     
-    /* It doesn't make a operation on database, only returns a value has not come from a update
-    (transport tonality) operation on a Song entity row */
+    /** It doesn't make a operation on database, only returns a value has not come from a update
+     * (transport tonality) operation on a Song entity row **/
     public Song transportSong(Song song, TonalityDTO newTonality) {
         final int originPitchOrdinal = song.getPitch().ordinal();
         final int destPitchOrdinal = newTonality.pitch.ordinal();
@@ -146,9 +140,5 @@ public class SongService {
         song.setPitch(newTonality.pitch);
         song.setProgression(progression);
         return song;
-    }
-
-    public void deleteSong(Song song) {
-        this.songRepository.delete(song);
     }
 }

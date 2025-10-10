@@ -48,7 +48,7 @@ public class Event {
 
     private String location;
     /** It represents into a serie, each song through title & tonality pair values**/
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
+    @ManyToMany
     @JoinTable(name = "events_songs",
             joinColumns = @JoinColumn(name = "event_id", referencedColumnName = "event_id"),
             inverseJoinColumns = @JoinColumn(name = "song_id", referencedColumnName = "song_id"))

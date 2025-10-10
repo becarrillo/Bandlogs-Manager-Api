@@ -46,8 +46,8 @@ public class EventService {
         return this.eventRepository.save(event);
     }
 
-    public void deleteEvent(Event event) {
-        this.eventRepository.delete(event);
+    public void deleteEventById(String eventId) {
+        this.eventRepository.deleteById(eventId);
     }
 
     public Event updateEventById(String id, Event event) {

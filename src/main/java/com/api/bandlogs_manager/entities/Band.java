@@ -49,7 +49,7 @@ public class Band {
     @NonNull
     private MusicalGenre musicalGenre;
 
-    @OneToMany(fetch = FetchType.LAZY, cascade = {CascadeType.REMOVE, CascadeType.MERGE})   // Db entity relationship
+    @OneToMany(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})   // Db entity relationship
     @JsonManagedReference
     @JoinTable(name = "band_events",
             joinColumns = @JoinColumn(name = "band_id", referencedColumnName = "band_id"),
@@ -62,5 +62,17 @@ public class Band {
     ) {
         this.name = name;
         this.musicalGenre = musicalGenre;
+    }
+
+    public Band(
+            String name,
+            MusicalGenre musicalGenre,
+            List<Event> events,
+            List<User> users
+    ) {
+        this.name = name;
+        this.musicalGenre = musicalGenre;
+        this.events = events;
+        this.users = users;
     }
 }

@@ -10,26 +10,13 @@ import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 
 import com.api.bandlogs_manager.repository.UserRepository;
 
-import java.io.IOException;
-
 import java.util.List;
 import java.util.Optional;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-
-import org.springframework.beans.factory.annotation.Value;
 
 import org.springframework.data.repository.query.Param;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 
@@ -42,16 +29,11 @@ import org.springframework.stereotype.Service;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    public final OkHttpClient okHttpClient;
-    private static final Logger log = LoggerFactory.getLogger(UserService.class);
+    
 
-    @Value("${rapidapi.key}")
-    private String rapidApiKey;
-
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, OkHttpClient okHttpClient) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.okHttpClient = okHttpClient;
     }
 
     public User getUserById(Integer id) {
@@ -60,55 +42,28 @@ public class UserService {
     }
 
     public User getUserByPhoneNumber(String phoneNumber) {
-        final User foundUser = this.userRepository.findByPhoneNumber(phoneNumber);
-        return foundUser;
+        final Optional<User> userOpt = Optional.of(this.userRepository.findByPhoneNumber(phoneNumber));
+        return userOpt.orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado por su número celular"));
     }
 
     public User getUserByNickname(String nickname) {
-        final User foundUser = this.userRepository.findByNickname(nickname);
-        return foundUser;
+        final Optional<User> userOpt = Optional.of(this.userRepository.findByNickname(nickname));
+        return userOpt.orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado por su nickname"));
     }
 
-    public List<User> getAllUsers() {
+    public List<User> listAllUsers() {
         return this.userRepository.findAll();
     }
 
-    public User registerUser(User user)  throws IOException {
+    public List<User> listUsersByNicknameContaining(String containing) {
+        final Optional<List<User>> usersOpt = Optional.of(this.userRepository.findByNicknameContaining(containing));
+        return usersOpt.orElseThrow(() -> new ResourceNotFoundException("No existe usuario alguno con nickname: ".concat(containing)));
+    }
+
+    public User registerUser(User user) {
         user.setPassword(this.passwordEncoder.encode(user.getPassword()));
         user.setRole(UserRole.ROLE_USER); // for secure purposes we must not allow to any user to be admin by himself
         return this.userRepository.save(user);
-    }
-
-    public void sendWhatsAppMessage(String phoneNumber, String userFirstname) throws IOException {
-        final MediaType mediaType = MediaType.parse("application/json");
-        String message = "Hola ";
-        message +=  userFirstname;
-        message +=  " 👋, soy Brando Carrillo. Te doy la bienvenida a mi web app Bandlogs Manager! 📯📲💻  ";
-        message += "Tu registro fue exitoso!✔🎉  Espero, la plataforma te ayude a gestionar tus grupos, eventos musicales y su repertorio ";
-        message += "🎼 de una manera intuitiva!  Ingresa y aprovecha todo su potencial.  Solicitudes, soporte o dudas por este medio.";
-        message += " (Mensaje autogenerado) ";
-
-        // Construct the message payload
-        final String payload = "{\"phone_number_or_group_id\":\""
-                .concat(phoneNumber.replace("+", ""))   // Ensure WhatsApp phone number does not have '+' country code preffix
-                // because WhatsApp number value must be without this character for My Whinlite (external) Api, but it requires county code 
-                .concat("\",\"message\":\"")
-                .concat(message).concat("\",\"is_group\":false}");
-        RequestBody body = RequestBody.create(payload, mediaType);
-        Request request = new Request.Builder()
-                .url("https://mywhinlite.p.rapidapi.com/sendmsg")
-                .post(body)
-                .addHeader("x-rapidapi-key", rapidApiKey)
-                .addHeader("x-rapidapi-host", "mywhinlite.p.rapidapi.com")
-                .addHeader("Content-Type", "application/json")
-                .build();
-        try (Response response = this.okHttpClient.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                log.error("Failed to send WhatsApp message: " + response.body().string());
-            } else {
-                log.info("WhatsApp message sent successfully!");
-            }
-        }
     }
     
     @PreAuthorize("hasRole('ADMIN')")
@@ -129,8 +84,8 @@ public class UserService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    public void deleteUser(User user) {
-        this.userRepository.delete(user);
+    public void deleteUserById(Integer userId) {
+        this.userRepository.deleteById(userId);
     }
 
     @PreAuthorize("#u.nickname == authentication.name or hasRole('ADMIN')")
