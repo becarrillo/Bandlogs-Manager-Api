@@ -58,7 +58,8 @@ public class EventController {
     private final SongService songService;
     private final JwtUtil jwtUtil;
 
-    public EventController(EventService eventService, BandService bandService, SongService songService, JwtUtil jwtUtil) {
+    public EventController(EventService eventService, BandService bandService, SongService songService,
+            JwtUtil jwtUtil) {
         this.eventService = eventService;
         this.bandService = bandService;
         this.songService = songService;
@@ -71,8 +72,8 @@ public class EventController {
         try {
             foundEvent = this.eventService.getEventById(id);
             return new ResponseEntity<>(
-                foundEvent,
-                HttpStatus.OK);
+                    foundEvent,
+                    HttpStatus.OK);
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 403)
                 return new ResponseEntity<>(HttpStatus.FORBIDDEN);
@@ -86,11 +87,11 @@ public class EventController {
     public ResponseEntity<List<Event>> listAllEvents(@RequestHeader("Authorization") String authHeader) {
         try {
             UserRole userRole = UserRole.valueOf(
-                        this.jwtUtil
+                    this.jwtUtil
                             .extractAllClaims(authHeader.replace("Bearer ", ""))
                             .get("role", String.class));
             final List<Event> events = this.eventService.listAllEvents();
-            if (!userRole.equals(UserRole.ROLE_ADMIN))  // Only users with role admin are authorizated
+            if (!userRole.equals(UserRole.ROLE_ADMIN)) // Only users with role admin are authorizated
                 return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
             return new ResponseEntity<>(
                     events,
@@ -104,14 +105,13 @@ public class EventController {
         }
     }
 
-    @GetMapping(path = "/", params = {"fecha"})
+    @GetMapping(path = "/", params = { "fecha" })
     public ResponseEntity<List<Event>> listEventsByDate(
-        @RequestHeader("Authorization") String authHeader,
-        @RequestParam("fecha") String date
-    ) {
+            @RequestHeader("Authorization") String authHeader,
+            @RequestParam("fecha") String date) {
         List<Event> events;
         final String dateAsString = URLDecoder
-            .decode(date, StandardCharsets.UTF_8);
+                .decode(date, StandardCharsets.UTF_8);
         try {
             final Claims claims = this.jwtUtil.extractAllClaims(authHeader.replace("Bearer ", ""));
             events = this.eventService
@@ -121,13 +121,14 @@ public class EventController {
                             .getBand()
                             .getUsers()
                             .stream()
-                            .anyMatch(u -> u                   // subject in claims = logged-in user nickname
-                                    .getNickname().equals(claims.getSubject()) // logged-in user is a related band member
+                            .anyMatch(u -> u // subject in claims = logged-in user nickname
+                                    .getNickname().equals(claims.getSubject()) // logged-in user is a related band
+                                                                               // member
                                     || u.getRole().equals(UserRole.ROLE_ADMIN))) // or the logged-in user is admin
                     .collect(Collectors.toList());
             return new ResponseEntity<>(
-                events,
-                HttpStatus.OK);
+                    events,
+                    HttpStatus.OK);
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 403)
                 return new ResponseEntity<>(HttpStatus.FORBIDDEN);
@@ -138,20 +139,20 @@ public class EventController {
     }
 
     @DeleteMapping(path = "/{eventId}/eliminar")
-    public ResponseEntity<Void> 
-    deleteEvent(@RequestHeader("Authorization") String authHeader,@PathVariable("eventId") String id) {
+    public ResponseEntity<Void> deleteEventById(@RequestHeader("Authorization") String authHeader,
+            @PathVariable("eventId") String id) {
         try {
             final String authUsername = this.jwtUtil.extractUsername(
                     authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-                final Event foundEvent = this.eventService.getEventById(event.getEventId());
-                final Optional<Band> bandOpt = this.bandService
-                        .getBandsSetByDirectorAndLoggedInUserNicknames(authUsername, authUsername)
-                        .stream()
-                        .filter(b -> b.getEvents().contains(foundEvent))
-                        .findFirst();
-                // Ensure only to band director wich the related event to delete it
-                if (bandOpt.isEmpty() || !b.getDirector().equals(authUsername))
-                    throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
+            final Event foundEvent = this.eventService.getEventById(id);
+            final Optional<Band> bandOpt = this.bandService
+                    .getBandsSetByDirectorAndLoggedInUserNicknames(authUsername, authUsername)
+                    .stream()
+                    .filter(b -> b.getEvents().contains(foundEvent))
+                    .findFirst();
+            // Ensure only to band director wich the related event to delete it
+            if (bandOpt.isEmpty())
+                throw new HttpClientErrorException(HttpStatusCode.valueOf(403));
             this.eventService.deleteEventById(id);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
@@ -161,40 +162,18 @@ public class EventController {
 
     @PutMapping(path = "/{eventId}/modificar")
     public ResponseEntity<Event> updateEvent(
-        @PathVariable("eventId") String id,
-        @RequestBody Event event) {
-            try {
-                return new ResponseEntity<>(
+            @PathVariable("eventId") String id,
+            @RequestBody Event event) {
+        try {
+            return new ResponseEntity<>(
                     this.eventService.updateEventById(id, event),
                     HttpStatus.OK);
-            } catch (HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 403)
-                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-                throw new RuntimeException(e);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-    }
-
-    @PatchMapping(path = "/{eventId}/repertorio/agregar")
-    public ResponseEntity<Event> patchSongToEvent(
-        @RequestHeader("Authorization") String authHeader,
-        @PathVariable("eventId") String id,
-        @RequestBody Song song) {
-            try {
-                final String authUsername = this.jwtUtil.extractUsername(
-                    authHeader.replace("Bearer ", "")); // get me authenticated user nickname by JWT
-                final Event foundEvent = this.eventService.getEventById(id);
-                if (!b.getDirector().equals(authUsername))
-                    throw new HttpClientErrorException(HttpStatusCode.valueOf(401));    // UNAUTHORIZED
-                final Event event = this.eventService.addSongToEvent(id, song);
-                return new ResponseEntity<>(event, HttpStatus.OK);
-            }  catch (HttpClientErrorException e) {
+        } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 403)
                 return new ResponseEntity<>(HttpStatus.FORBIDDEN);
             throw new RuntimeException(e);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

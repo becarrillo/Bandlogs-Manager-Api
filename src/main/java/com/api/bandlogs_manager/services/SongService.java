@@ -103,8 +103,11 @@ public class SongService {
         return this.songRepository.save(song);
     }
     
-    /** It doesn't make a operation on database, only returns a value has not come from a update
-     * (transport tonality) operation on a Song entity row **/
+    /** 
+     * update song progression chords by newTonality param
+     * @param song song to be transposed
+     * @param newTonality pitch and suffix object
+     * @return transposed in database song version **/
     public Song transportSong(Song song, TonalityDTO newTonality) {
         final int originPitchOrdinal = song.getPitch().ordinal();
         final int destPitchOrdinal = newTonality.pitch.ordinal();
@@ -139,6 +142,6 @@ public class SongService {
 
         song.setPitch(newTonality.pitch);
         song.setProgression(progression);
-        return song;
+        return songRepository.saveAndFlush(song);
     }
 }

@@ -1,6 +1,7 @@
 package com.api.bandlogs_manager.controllers;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -8,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -17,8 +17,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.api.bandlogs_manager.dtos.UserRoleDTO;
 
 import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.User;
@@ -32,8 +30,6 @@ import com.api.bandlogs_manager.services.BandService;
 import com.api.bandlogs_manager.services.UserService;
 
 import io.jsonwebtoken.Claims;
-
-
 
 /**
  * Project: bandlogs-manager
@@ -118,19 +114,19 @@ public class UserController {
     public ResponseEntity<User> registerUser(@RequestBody User user) {
         try {// Register user and assign result to a variable
             final User savedUser = this.userService.registerUser(user);
-            /*if (Objects.isNull(savedUser))
+            if (Objects.isNull(savedUser))
                 return new ResponseEntity<>(HttpStatus.CONFLICT);
-            String message = "Hola, ";   // Generate the WhatsApp notification message message body
+            String message = "Hola, ";   // Generate the WhatsApp notification message body
             message +=  savedUser.getFirstname();
-            message +=  " 👋, soy Brando Carrillo, te doy la bienvenida a mi web app Bandlogs Manager en español! 📯📲💻  ";
+            message +=  " 👋, te doy la bienvenida a mi web app Bandlogs Manager en español! 📯📲💻  ";
             message += "Tu registro fue exitoso... ✔🎉 y espero, la plataforma te ayude a gestionar tus grupos, eventos musicales y su repertorio ";
             message += "🎼 de una manera intuitiva.  Ingresa y aprovecha todo su potencial.  Para solicitudes, soporte técnico o dudas por este medio.";
-            message += " (Mensaje autogenerado) ";
+            message += " Brando Carrillo Pérez ~ (@belicarrillo)   ----  Mensaje autogenerado ---- ";
             
             this.whatsAppNotificationMessagingService.sendMessageAsString(
                 savedUser.getPhoneNumber().replace("+", ""),// WhatsApp number string, must not have '+' for send msg through external API 
                 message
-            );*/
+            );
             return new ResponseEntity<>(
                     savedUser,
                     HttpStatus.CREATED);
@@ -180,18 +176,5 @@ public class UserController {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @PatchMapping(path = "/{userId}/rol/modificar")
-    public ResponseEntity<User> patchUserRoleByUserId(
-        @PathVariable("userId") int id, @RequestBody UserRoleDTO dto) {
-            User roledUser;
-            roledUser = this.userService.setUserRoleByUserId(id, dto);
-            if (roledUser == null) {
-                throw new ResourceNotFoundException("Usuario no encontrado");
-            }
-            return new ResponseEntity<>(
-                roledUser,
-                HttpStatus.OK);
     }
 }

@@ -13,16 +13,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
 
+/**
+ * Project: bandlogs-manager
+ * Author: Brando Eli Carrillo Perez
+ */
 @RestController
 @RequestMapping("/api/v1/repertorio")
 public class SongController {
@@ -30,16 +32,6 @@ public class SongController {
 
     public SongController(SongService songService) {
         this.songService = songService;
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Song>> listAllSongs(@RequestHeader("Authorization") String authHeader) {
-        try {
-            final List<Song> songsList = this.songService.getSongsList(authHeader.replace("Bearer ", ""));
-            return new ResponseEntity<>(songsList, HttpStatus.OK);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @GetMapping(path = "/{songId}")
@@ -58,7 +50,7 @@ public class SongController {
         }
     }
 
-    @PatchMapping(path = "/{songId}/transportar")
+    @PutMapping(path = "/{songId}/transportar")
     public ResponseEntity<Song> transportSong(
         @PathVariable("songId") int id,
         @RequestBody TonalityDTO dto) {
@@ -71,5 +63,15 @@ public class SongController {
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Song>> listAllSongs(@RequestHeader("Authorization") String authHeader) {
+        try {
+            final List<Song> songsList = this.songService.getSongsList(authHeader.replace("Bearer ", ""));
+            return new ResponseEntity<>(songsList, HttpStatus.OK);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

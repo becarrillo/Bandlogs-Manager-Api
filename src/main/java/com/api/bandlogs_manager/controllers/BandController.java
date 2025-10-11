@@ -14,13 +14,6 @@ import com.api.bandlogs_manager.services.BandService;
 
 import io.jsonwebtoken.Claims;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-
-import org.springframework.web.bind.annotation.*;
-
-import org.springframework.web.client.HttpClientErrorException;
-
 import java.net.URLDecoder;
 
 import java.nio.charset.StandardCharsets;
@@ -31,6 +24,13 @@ import java.time.ZoneId;
 
 import java.util.List;
 import java.util.Set;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.client.HttpClientErrorException;
 
 
 /**
@@ -216,17 +216,13 @@ public class BandController {
                                 "el usuario ya es miembro de la banda.");
             }
             // Generate the WhatsApp notification message message body as string
-            /*String message = "Notificación 📲: Hola ".concat(user.getFirstname());
+            String message = "Notificación 📲: Hola ".concat(user.getFirstname());
             message += ", has sido agregado al espacio virtual 💻🎼 de la banda \"";
             message += band.getName();
             message += "\", en Bandlogs Manager en español. Puedes comenzar a visualizar la misma, quienes son miembros y su calendario de eventos.";
-            message += " Att: Brando Carrillo. (Mensaje autogenerado)";
-            this.whatsAppNotificationMessagingService.sendMessageAsString(user.getPhoneNumber(), message);*/
+            message += " (Mensaje autogenerado)";
+            this.whatsAppNotificationMessagingService.sendMessageAsString(user.getPhoneNumber(), message);
             return new ResponseEntity<>(band, HttpStatus.OK);
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode().value() == 403)
-                return new ResponseEntity<>(HttpStatus.FORBIDDEN);
-            throw new RuntimeException(e);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
