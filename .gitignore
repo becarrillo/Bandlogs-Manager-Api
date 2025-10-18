@@ -20,6 +20,9 @@ bin/
 ### environment variables
 .env
 
+### jar files
+Bandlogs-Manager-Api.jar
+
 ### IntelliJ IDEA ###
 .idea
 *.iws
