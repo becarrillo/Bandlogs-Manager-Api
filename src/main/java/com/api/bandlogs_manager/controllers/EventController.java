@@ -5,9 +5,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -15,9 +13,7 @@ import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -29,7 +25,6 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import com.api.bandlogs_manager.entities.Band;
 import com.api.bandlogs_manager.entities.Event;
-import com.api.bandlogs_manager.entities.Song;
 
 import com.api.bandlogs_manager.exceptions.ResourceNotFoundException;
 
@@ -55,14 +50,11 @@ import com.api.bandlogs_manager.enums.UserRole;
 public class EventController {
     private final EventService eventService;
     private final BandService bandService;
-    private final SongService songService;
     private final JwtUtil jwtUtil;
 
-    public EventController(EventService eventService, BandService bandService, SongService songService,
-            JwtUtil jwtUtil) {
+    public EventController(EventService eventService, BandService bandService, JwtUtil jwtUtil) {
         this.eventService = eventService;
         this.bandService = bandService;
-        this.songService = songService;
         this.jwtUtil = jwtUtil;
     }
 

@@ -221,7 +221,7 @@ public class BandController {
             message += band.getName();
             message += "\", en Bandlogs Manager en español. Puedes comenzar a visualizar la misma, quienes son miembros y su calendario de eventos.";
             message += " (Mensaje autogenerado)";
-            this.whatsAppNotificationMessagingService.sendMessageAsString(user.getPhoneNumber(), message);
+            this.whatsAppNotificationMessagingService.sendMessageAsString(user.getPhoneNumber().replace("+", ""), message);
             return new ResponseEntity<>(band, HttpStatus.OK);
         } catch (Exception e) {
             throw new RuntimeException(e);

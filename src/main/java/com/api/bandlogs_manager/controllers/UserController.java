@@ -121,7 +121,7 @@ public class UserController {
             message +=  " 👋, te doy la bienvenida a mi web app Bandlogs Manager en español! 📯📲💻  ";
             message += "Tu registro fue exitoso... ✔🎉 y espero, la plataforma te ayude a gestionar tus grupos, eventos musicales y su repertorio ";
             message += "🎼 de una manera intuitiva.  Ingresa y aprovecha todo su potencial.  Para solicitudes, soporte técnico o dudas por este medio.";
-            message += " Brando Carrillo Pérez ~ (@belicarrillo)   ----  Mensaje autogenerado ---- ";
+            message += " Brando Carrillo Pérez ~  ----  Mensaje autogenerado ---- ";
             
             this.whatsAppNotificationMessagingService.sendMessageAsString(
                 savedUser.getPhoneNumber().replace("+", ""),// WhatsApp number string, must not have '+' for send msg through external API 
